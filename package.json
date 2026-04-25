@@ -1,0 +1,27 @@
+{
+  "name": "pqc-developers-handbook",
+  "version": "10.0.0",
+  "description": "Post-Quantum Cryptography Developer's Handbook — comprehensive reference book and syllabus for C/C++ developers",
+  "license": "Apache-2.0",
+  "main": "md2pdf.js",
+  "scripts": {
+    "build": "node md2pdf.js pqc-developers-handbook.md pdf-style-weasy.css pqc-developers-handbook.html && weasyprint pqc-developers-handbook.html pqc-developers-handbook.pdf"
+  },
+  "dependencies": {
+    "marked": "^17.0.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "post-quantum",
+    "cryptography",
+    "ml-kem",
+    "ml-dsa",
+    "slh-dsa",
+    "fips-203",
+    "fips-204",
+    "fips-205",
+    "reference-book"
+  ]
+}

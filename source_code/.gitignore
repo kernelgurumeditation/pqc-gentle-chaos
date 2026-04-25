@@ -1,0 +1,24 @@
+# Compiled executables (no extension)
+unit_*
+!*.c
+!*.h
+
+# Build artifacts
+*.o
+*.a
+*.so
+build_log*.txt
+
+# Temporary extraction scripts
+extract_*.py
+extract_*.sh
+compile_all.sh
+test_extracted.sh
+EXTRACTION_*.md
+
+# Other executables (non-unit)
+lattice_basics
+
+# IDE
+.vscode/
+.idea/

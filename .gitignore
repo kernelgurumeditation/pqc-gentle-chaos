@@ -1,0 +1,42 @@
+# Build intermediates (PDFs themselves are tracked)
+pqc-developers-handbook.html
+pqc-developers-handbook-essentials.html
+pqc-developers-handbook-essentials.md
+pqc-developers-handbook-vol1.html
+pqc-developers-handbook-vol1.md
+pqc-developers-handbook-vol2.html
+pqc-developers-handbook-vol2.md
+
+# Local agent state
+.claude/
+
+# Node
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+.vim/
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Build artifacts
+build/
+dist/
+*.log
+
+# Maintenance script caches
+.link-check-cache.txt

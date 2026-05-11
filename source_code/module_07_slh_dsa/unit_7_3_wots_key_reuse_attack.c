@@ -62,7 +62,8 @@ static void prf(uint8_t out[WOTS_N], const uint8_t seed[WOTS_N], int idx)
     simple_hash(out, input, WOTS_N + 4);
 }
 
-/* Convert message to base-w indices */
+/* Convert message to base-w indices (educational reference, not used in this demo) */
+__attribute__((unused))
 static void msg_to_base_w(uint32_t *out, const uint8_t *msg, int out_len)
 {
     int bits = 0;
@@ -79,7 +80,8 @@ static void msg_to_base_w(uint32_t *out, const uint8_t *msg, int out_len)
     }
 }
 
-/* Compute checksum */
+/* Compute checksum (educational reference, not used in this demo) */
+__attribute__((unused))
 static uint32_t compute_checksum(const uint32_t *chunks, int len)
 {
     uint32_t sum = 0;

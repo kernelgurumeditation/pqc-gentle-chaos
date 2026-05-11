@@ -415,6 +415,7 @@ static void poly_sample_challenge(poly *c, const uint8_t c_tilde[CTILDE_BYTES]) 
  * ============================================ */
 
 /* Encode z polynomial (20 bits per coefficient) */
+__attribute__((unused))
 static void encode_z(uint8_t *out, const poly *z) {
     for (int i = 0; i < MLDSA_N / 4; i++) {
         /* Pack 4 coefficients into 10 bytes */
@@ -437,6 +438,7 @@ static void encode_z(uint8_t *out, const poly *z) {
 }
 
 /* Decode z polynomial */
+__attribute__((unused))
 static void decode_z(poly *z, const uint8_t *in) {
     for (int i = 0; i < MLDSA_N / 4; i++) {
         uint32_t c0 = in[10 * i + 0] | ((uint32_t)in[10 * i + 1] << 8) |
@@ -456,6 +458,7 @@ static void decode_z(poly *z, const uint8_t *in) {
 }
 
 /* Encode hints (position-based encoding) */
+__attribute__((unused))
 static int encode_hints(uint8_t *out, const mldsa_sig *sig) {
     memset(out, 0, H_BYTES);
 
@@ -474,6 +477,7 @@ static int encode_hints(uint8_t *out, const mldsa_sig *sig) {
 }
 
 /* Decode hints */
+__attribute__((unused))
 static int decode_hints(mldsa_sig *sig, const uint8_t *in) {
     memset(sig->h, 0, sizeof(sig->h));
     sig->h_count = 0;

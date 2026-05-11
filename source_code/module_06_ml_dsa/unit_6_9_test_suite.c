@@ -70,6 +70,7 @@ static int make_hint(int32_t z, int32_t r) {
     return (r1 != rz1) ? 1 : 0;
 }
 
+__attribute__((unused))
 static int32_t use_hint(int hint, int32_t r) {
     (void)hint; (void)r;
     return highbits(r);  /* Simplified */

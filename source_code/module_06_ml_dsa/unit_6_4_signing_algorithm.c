@@ -69,7 +69,9 @@ static int32_t ct_abs(int32_t x) {
     return (x ^ mask) - mask;
 }
 
-/* Constant-time select: returns a if select=1, b if select=0 */
+/* Constant-time select: returns a if select=1, b if select=0
+ * (educational reference; the simplified flows below don't use it) */
+__attribute__((unused))
 static int32_t ct_select(int32_t a, int32_t b, int32_t select) {
     return b ^ (select & (a ^ b));
 }

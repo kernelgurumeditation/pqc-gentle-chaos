@@ -39,7 +39,8 @@ static void simple_hash(uint8_t out[SLH_N], const uint8_t *in, size_t len)
     }
 }
 
-/* PRF for key derivation */
+/* PRF for key derivation (educational reference, not used directly in this demo) */
+__attribute__((unused))
 static void prf(uint8_t out[SLH_N], const uint8_t seed[SLH_N],
                 const uint8_t *addr, size_t addr_len)
 {

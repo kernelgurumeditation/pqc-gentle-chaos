@@ -278,7 +278,7 @@ void compute_tr(uint8_t tr[64], const public_key *pk) {
  */
 void hash_message(uint8_t mu[64], const uint8_t tr[64],
                   const uint8_t *msg, size_t msglen) {
-    for (int i = 0; i < 64; i++) {
+    for (size_t i = 0; i < 64; i++) {
         mu[i] = tr[i];
         if (i < msglen) {
             mu[i] ^= msg[i];
@@ -292,15 +292,17 @@ void hash_message(uint8_t mu[64], const uint8_t tr[64],
  */
 void hash_commitment(uint8_t ctilde[CTILDE_BYTES], const uint8_t mu[64],
                      const polyveck *w1) {
-    uint8_t temp[32];
+    /* Real impl: SHAKE256(mu || encode(w1)) producing CTILDE_BYTES output.
+     * Simplified for demonstration. */
+    uint8_t temp[CTILDE_BYTES];
 
-    for (int i = 0; i < 32; i++) {
-        temp[i] = mu[i] ^ mu[i + 32];
+    for (size_t i = 0; i < CTILDE_BYTES; i++) {
+        temp[i] = mu[i % 64] ^ mu[(i + 32) % 64];
     }
 
     for (int k = 0; k < MLDSA_K; k++) {
         for (int j = 0; j < MLDSA_N; j += 8) {
-            temp[j / 8 % 32] ^= (uint8_t)(w1->vec[k].coeffs[j] & 0xFF);
+            temp[(j / 8) % CTILDE_BYTES] ^= (uint8_t)(w1->vec[k].coeffs[j] & 0xFF);
         }
     }
 

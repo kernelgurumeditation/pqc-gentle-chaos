@@ -69,7 +69,9 @@ static int32_t ct_abs(int32_t x) {
     return (x ^ mask) - mask;
 }
 
-/* Constant-time select: returns a if select=1, b if select=0 */
+/* Constant-time select: returns a if select=1, b if select=0
+ * (educational reference; the simplified flows below don't use it) */
+__attribute__((unused))
 static int32_t ct_select(int32_t a, int32_t b, int32_t select) {
     return b ^ (select & (a ^ b));
 }
@@ -275,7 +277,7 @@ void hash_message(uint8_t mu[64], const uint8_t tr[64],
                   const uint8_t *msg, size_t msglen) {
     /* In real implementation: SHAKE256(tr || msg) */
     /* Simplified version for demonstration */
-    for (int i = 0; i < 64; i++) {
+    for (size_t i = 0; i < 64; i++) {
         mu[i] = tr[i];
         if (i < msglen) {
             mu[i] ^= msg[i];
@@ -289,17 +291,18 @@ void hash_message(uint8_t mu[64], const uint8_t tr[64],
  */
 void hash_commitment(uint8_t ctilde[CTILDE_BYTES], const uint8_t mu[64],
                      const polyveck *w1) {
-    /* In real implementation: SHAKE256(mu || encode(w1)) */
+    /* In real implementation: SHAKE256(mu || encode(w1)) producing CTILDE_BYTES output */
     /* Simplified for demonstration */
-    uint8_t temp[32];
+    uint8_t temp[CTILDE_BYTES];
 
-    for (int i = 0; i < 32; i++) {
-        temp[i] = mu[i] ^ mu[i + 32];
+    /* Initialise from mu (64 bytes) folded down to CTILDE_BYTES */
+    for (size_t i = 0; i < CTILDE_BYTES; i++) {
+        temp[i] = mu[i % 64] ^ mu[(i + 32) % 64];
     }
 
     for (int k = 0; k < MLDSA_K; k++) {
         for (int j = 0; j < MLDSA_N; j += 8) {
-            temp[j / 8 % 32] ^= (uint8_t)(w1->vec[k].coeffs[j] & 0xFF);
+            temp[(j / 8) % CTILDE_BYTES] ^= (uint8_t)(w1->vec[k].coeffs[j] & 0xFF);
         }
     }
 
@@ -413,6 +416,7 @@ void polyveck_add(polyveck *c, const polyveck *a, const polyveck *b) {
  * Returns number of bytes written
  */
 int encode_hint(uint8_t *h_bytes, const polyveck *h, int h_count) {
+    (void)h_count;  /* Educational stub; full impl would respect h_count bound */
     int idx = 0;
 
     /* For each polynomial in h */
@@ -453,9 +457,10 @@ int mldsa_sign(signature *sig,
                const polyveck *t0,         /* Low bits of t */
                const poly A[MLDSA_K][MLDSA_L]) /* Public matrix */
 {
+    (void)rho;  /* Public seed referenced for completeness; not used in simplified impl */
     uint8_t mu[64];          /* Message hash */
     polyvecl y;              /* Masking vector */
-    polyveck w, w1, w0;      /* Commitment and decomposition */
+    polyveck w, w1;          /* Commitment and high-bits (w0 unused in simplified impl) */
     poly c;                  /* Challenge polynomial */
     polyvecl cs1;            /* c * s1 */
     polyveck cs2, ct0;       /* c * s2, c * t0 */

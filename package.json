@@ -1,12 +1,21 @@
 {
   "name": "pqc-developers-handbook",
-  "version": "10.0.0",
-  "description": "Post-Quantum Cryptography Developer's Handbook — comprehensive reference book and syllabus for C/C++ developers",
+  "version": "1.0.0",
+  "description": "Post-Quantum Cryptography Developer's Handbook. A learning notebook and reference for C/C++ developers covering FIPS 203 (ML-KEM), FIPS 204 (ML-DSA), FIPS 205 (SLH-DSA), hybrid cryptography, protocol integration, and migration.",
   "license": "Apache-2.0",
+  "author": "Nuno Felicio <nuno.felicio@gmail.com>",
   "main": "md2pdf.js",
   "scripts": {
     "build": "node md2pdf.js pqc-developers-handbook.md pdf-style-weasy.css pqc-developers-handbook.html && weasyprint pqc-developers-handbook.html pqc-developers-handbook.pdf"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kernelgurumeditation/pqc-gentle-chaos.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kernelgurumeditation/pqc-gentle-chaos/issues"
+  },
+  "homepage": "https://github.com/kernelgurumeditation/pqc-gentle-chaos",
   "dependencies": {
     "marked": "^17.0.5"
   },

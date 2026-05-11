@@ -165,7 +165,7 @@ help:
 	@echo "Targets:"
 	@echo "  make                  - Build the full PDF (default)"
 	@echo "  make pdf              - Build the full PDF"
-	@echo "  make pdf-essentials   - Build the ~300pp Essentials Edition PDF"
+	@echo "  make pdf-essentials   - Build the ~240pp Essentials Edition PDF"
 	@echo "  make pdf-all          - Build full + essentials editions"
 	@echo "  make pdf-vol1         - Build Volume 1 (Algorithms — Modules 1-7)"
 	@echo "  make pdf-vol2         - Build Volume 2 (Production — Modules 8-11)"

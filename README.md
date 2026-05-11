@@ -13,7 +13,7 @@ This isn't a polished textbook. It's a working notebook. Expect rough edges in p
 ## What's in here
 
 - **`pqc-developers-handbook.md`**: the master document (~55,000 lines, 11 modules, ~226 exercises with solutions). Source of truth. Everything else is generated from this.
-- **`source_code/`**: 87 C files across 11 module directories. Standalone files build with `-Wall -Wextra -Wshadow`. A few (Module 1, parts of 11) use liboqs / OpenSSL conditionally.
+- **`source_code/`**: 85 C files across 11 module directories. Standalone files build with `-Wall -Wextra -Wshadow`. A few (Module 1, parts of 7 and 11) use liboqs / OpenSSL conditionally (`make build-ssl` per module).
 - **`md2pdf.js`, `md2pdf-essentials.js`, `md2pdf-volume.js`, `volume-config.js`**: the Markdown → HTML → PDF pipeline (WeasyPrint).
 - **`scripts/`**: small maintenance helpers (currency lint, link check, volume audit).
 
@@ -58,14 +58,14 @@ Four PDFs, all built from the same Markdown source. Pick the one that matches ho
 
 | File | Pages | Best for |
 |------|-------|----------|
-| `pqc-developers-handbook.pdf` | ~1,170 | The completist. Everything in one place. Heavy. |
+| `pqc-developers-handbook.pdf` | ~1,160 | The completist. Everything in one place. Heavy. |
 | `pqc-developers-handbook-essentials.pdf` | ~240 | Quick reference. Skips the math foundations and protocol deep-dives; keeps the algorithm overviews and the operational / migration content (Cloud KMS, CVE registry, deployment checklist, regulatory matrix). |
 | `pqc-developers-handbook-vol1.pdf` | ~700 | **Algorithms** (Modules 1–7). For somebody implementing or studying the primitives: math foundations, lattice theory, ML-KEM / ML-DSA / SLH-DSA internals. Researchers, library implementers, students. |
 | `pqc-developers-handbook-vol2.pdf` | ~420 | **Production** (Modules 8–11 + ops appendices). Hybrid crypto, protocol integration, KMS landscape, the PQC CVE registry, migration cookbook, regulatory deadlines. For SREs, security architects, anyone running real systems through this transition. |
 
 Cross-volume references in V1 and V2 are rewritten automatically ("see Volume 2, Unit 11.10") so each volume reads coherently on its own without dangling links.
 
-The two-volume split is the better choice if you have a single audience. The unified PDF is for the rare reader who actually wants all 1,170 pages on one PDF.
+The two-volume split is the better choice if you have a single audience. The unified PDF is for the rare reader who actually wants the full thing on one PDF.
 
 ## What's covered
 

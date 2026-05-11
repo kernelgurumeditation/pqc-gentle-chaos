@@ -295,7 +295,7 @@ const generatedTOC = generateTOC(output);
 const essentialsNotice = `
 > **Essentials Edition.** This is a curated subset of the full PQC Developer's Handbook (1,220+ pages). It includes the introduction, glossary, key algorithm overviews (ML-KEM, ML-DSA, SLH-DSA, X-Wing), and the operational/migration material (cloud KMS integration, CVE registry, formal verification lessons, production deployment checklist). For mathematical foundations, deep algorithm internals, and full source code references, see the [full edition](pqc-developers-handbook.pdf).
 >
-> *Generated from \`pqc-developers-handbook.md\` v10.7 — see Document History in the full edition for change log.*
+> *Generated from \`pqc-developers-handbook.md\` v1.0 — see Document History in the full edition for change log.*
 
 `;
 

@@ -2,7 +2,7 @@
 # Master Makefile
 
 CC = gcc
-CFLAGS = -Wall -Wextra -O2 -std=c11
+CFLAGS = -Wall -Wextra -Wshadow -O2 -std=c11
 LDFLAGS = -lm
 
 # Module directories

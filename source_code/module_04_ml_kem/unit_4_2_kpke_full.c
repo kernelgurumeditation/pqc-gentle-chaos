@@ -76,7 +76,7 @@ static int16_t sample_cbd(int eta, uint8_t *random_bytes, int *byte_offset) {
 /*
  * Sample a polynomial with CBD distribution
  */
-static void poly_sample_cbd(poly *p, int eta, uint8_t *seed, int nonce) {
+static void poly_sample_cbd(poly *p, int eta, const uint8_t *seed, int nonce) {
     /* In real implementation: derive randomness from seed and nonce using XOF */
     /* Here we use simplified random bytes */
     uint8_t random_bytes[512];
@@ -97,7 +97,7 @@ static void poly_sample_cbd(poly *p, int eta, uint8_t *seed, int nonce) {
 /*
  * Sample a polyvec with CBD distribution
  */
-static void polyvec_sample_cbd(polyvec *v, int eta, uint8_t *seed, int *nonce) {
+static void polyvec_sample_cbd(polyvec *v, int eta, const uint8_t *seed, int *nonce) {
     for (int i = 0; i < K; i++) {
         poly_sample_cbd(&v->vec[i], eta, seed, (*nonce)++);
     }
@@ -107,7 +107,7 @@ static void polyvec_sample_cbd(polyvec *v, int eta, uint8_t *seed, int *nonce) {
  * Generate a random polynomial with coefficients in [0, Q-1]
  * (Used for matrix A generation)
  */
-static void poly_sample_uniform(poly *p, uint8_t *seed, int i, int j) {
+static void poly_sample_uniform(poly *p, const uint8_t *seed, int i, int j) {
     /* XOF expansion of seed || i || j */
     /* Simplified: deterministic but "random-looking" */
     for (int k = 0; k < N; k++) {
@@ -120,7 +120,7 @@ static void poly_sample_uniform(poly *p, uint8_t *seed, int i, int j) {
 /*
  * Generate matrix A from seed (A-hat in NTT domain in real implementation)
  */
-static void matrix_generate(poly A[K][K], uint8_t *seed) {
+static void matrix_generate(poly A[K][K], const uint8_t *seed) {
     for (int i = 0; i < K; i++) {
         for (int j = 0; j < K; j++) {
             poly_sample_uniform(&A[i][j], seed, i, j);
@@ -313,16 +313,16 @@ void kpke_encrypt(const uint8_t seed[32], const polyvec *pk_t,
                   polyvec *ct_u, poly *ct_v) {
     poly A[K][K];
     polyvec r, e1;
-    poly e2, mu, temp;
+    poly e2, mu;
     int nonce = 0;
 
     /* Regenerate matrix A from seed */
     matrix_generate(A, seed);
 
     /* Sample encryption randomness from coins */
-    polyvec_sample_cbd(&r, ETA1, (uint8_t*)coins, &nonce);
-    polyvec_sample_cbd(&e1, ETA2, (uint8_t*)coins, &nonce);
-    poly_sample_cbd(&e2, ETA2, (uint8_t*)coins, &nonce);
+    polyvec_sample_cbd(&r, ETA1, coins, &nonce);
+    polyvec_sample_cbd(&e1, ETA2, coins, &nonce);
+    poly_sample_cbd(&e2, ETA2, coins, nonce++);
 
     /* Encode message */
     message_encode(&mu, msg);

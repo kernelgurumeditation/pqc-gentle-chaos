@@ -321,8 +321,14 @@ void print_complexity_analysis(void) {
 }
 
 int main(void) {
-    srand((unsigned int)time(NULL));
-    prng_state = (uint64_t)time(NULL);
+    /* Fixed default seed => reproducible teaching output; override with
+     * PQC_DEMO_SEED. */
+    const char *demo_seed_env = getenv("PQC_DEMO_SEED");
+    unsigned demo_seed = demo_seed_env
+                             ? (unsigned)strtoul(demo_seed_env, NULL, 10)
+                             : 1234567u;
+    srand(demo_seed);
+    prng_state = (uint64_t)demo_seed;
 
     benchmark_mldsa();
     analyze_signing_iterations();

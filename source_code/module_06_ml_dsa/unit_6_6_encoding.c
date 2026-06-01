@@ -200,35 +200,55 @@ void decode_z(polyvecl *z, const uint8_t in[Z_BYTES]) {
 }
 
 /*
- * ========== t₁ Encoding (4-bit coefficients) ==========
+ * ========== t₁ Encoding (10-bit coefficients) ==========
+ * t1 = t >> d where d=13, so t1 ∈ [0, (q-1)>>13] = [0, 1022].
+ * This requires 10 bits per coefficient. We pack 4 coefficients
+ * into 5 bytes (40 bits = 4 × 10 bits).
  */
 
 /*
- * Encode t1 vector (6 polynomials, 4 bits per coefficient)
+ * Encode t1 vector (6 polynomials, 10 bits per coefficient)
+ * Output: K * N * 10 / 8 = T1_BYTES bytes
  */
 void encode_t1(uint8_t out[T1_BYTES], const polyveck *t1) {
     int byte_idx = 0;
 
     for (int i = 0; i < K; i++) {
-        for (int j = 0; j < N; j += 2) {
-            /* Pack 2 x 4-bit values into 1 byte */
-            out[byte_idx++] = (t1->vec[i].coeffs[j] & 0x0F) |
-                             ((t1->vec[i].coeffs[j + 1] & 0x0F) << 4);
+        for (int j = 0; j < N; j += 4) {
+            /* Pack 4 × 10-bit values into 5 bytes */
+            uint16_t c0 = t1->vec[i].coeffs[j]     & 0x3FF;
+            uint16_t c1 = t1->vec[i].coeffs[j + 1] & 0x3FF;
+            uint16_t c2 = t1->vec[i].coeffs[j + 2] & 0x3FF;
+            uint16_t c3 = t1->vec[i].coeffs[j + 3] & 0x3FF;
+
+            out[byte_idx]     =  c0 & 0xFF;                        /* bits 0-7 of c0 */
+            out[byte_idx + 1] = (c0 >> 8) | ((c1 & 0x3F) << 2);   /* bits 8-9 of c0, bits 0-5 of c1 */
+            out[byte_idx + 2] = (c1 >> 6) | ((c2 & 0x0F) << 4);   /* bits 6-9 of c1, bits 0-3 of c2 */
+            out[byte_idx + 3] = (c2 >> 4) | ((c3 & 0x03) << 6);   /* bits 4-9 of c2, bits 0-1 of c3 */
+            out[byte_idx + 4] = (c3 >> 2);                         /* bits 2-9 of c3 */
+            byte_idx += 5;
         }
     }
 }
 
 /*
- * Decode t1 vector from byte array
+ * Decode t1 vector from byte array (10 bits per coefficient)
  */
 void decode_t1(polyveck *t1, const uint8_t in[T1_BYTES]) {
     int byte_idx = 0;
 
     for (int i = 0; i < K; i++) {
-        for (int j = 0; j < N; j += 2) {
-            t1->vec[i].coeffs[j]     = in[byte_idx] & 0x0F;
-            t1->vec[i].coeffs[j + 1] = (in[byte_idx] >> 4) & 0x0F;
-            byte_idx++;
+        for (int j = 0; j < N; j += 4) {
+            /* Unpack 4 × 10-bit values from 5 bytes */
+            t1->vec[i].coeffs[j]     =  (uint16_t)in[byte_idx]
+                                       | (((uint16_t)in[byte_idx + 1] & 0x03) << 8);
+            t1->vec[i].coeffs[j + 1] = ((uint16_t)in[byte_idx + 1] >> 2)
+                                       | (((uint16_t)in[byte_idx + 2] & 0x0F) << 6);
+            t1->vec[i].coeffs[j + 2] = ((uint16_t)in[byte_idx + 2] >> 4)
+                                       | (((uint16_t)in[byte_idx + 3] & 0x3F) << 4);
+            t1->vec[i].coeffs[j + 3] = ((uint16_t)in[byte_idx + 3] >> 6)
+                                       | (((uint16_t)in[byte_idx + 4]) << 2);
+            byte_idx += 5;
         }
     }
 }
@@ -490,15 +510,16 @@ void test_hint_encoding(void) {
 }
 
 void test_t1_encoding(void) {
-    printf("=== Testing t₁ Encoding (4-bit) ===\n\n");
+    printf("=== Testing t₁ Encoding (10-bit) ===\n\n");
 
     polyveck t1_orig, t1_decoded;
     uint8_t t1_bytes[T1_BYTES];
 
-    /* Create test t1 with values in [0, 15] */
+    /* Create test t1 with realistic values in [0, 1022].
+     * t1 = t >> d so coefficients span the full 10-bit range. */
     for (int i = 0; i < K; i++) {
         for (int j = 0; j < N; j++) {
-            t1_orig.vec[i].coeffs[j] = (i * N + j) % 16;
+            t1_orig.vec[i].coeffs[j] = ((i * N + j) * 7) % 1023;
         }
     }
 

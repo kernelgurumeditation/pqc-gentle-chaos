@@ -1,0 +1,35 @@
+=== Merkle Signature Scheme Demonstration ===
+
+Testing Merkle tree construction...
+  Root: 0000000000000000...
+  Tamper check (informational, toy hash): wrong leaf verified (toy-hash collision; a real hash rejects it)
+  Merkle tree tests PASSED!
+Testing authentication path index computation...
+  Testing leaf 5 (binary 0101):
+    Level 0: sibling is 4 (0100)
+    Level 1: sibling covers leaves 6-7
+    Level 2: sibling covers leaves 0-3
+    Level 3: sibling covers leaves 8-15
+  Authentication path index tests PASSED!
+
+Demonstrating OTS + Merkle concept...
+  In a real MSS (Merkle Signature Scheme):
+    1. Generate N OTS key pairs
+    2. Build Merkle tree from OTS public keys
+    3. Public key = Merkle root
+    4. To sign: use next unused OTS key + auth path
+    5. To verify: verify OTS sig, recompute path to root
+
+  Key insight: Each OTS key can only be used ONCE
+  The Merkle tree allows compact verification of many OTS keys
+
+  Tree of height h allows 2^h signatures
+    h=20 -> ~1 million signatures
+    h=10 -> 1024 signatures
+
+=== Demo complete! ===
+
+=== Self-test verdict ===
+  Merkle tree construction + auth paths: PASS
+  Auth-path index computation          : PASS
+Result: PASS

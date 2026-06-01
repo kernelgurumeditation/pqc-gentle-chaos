@@ -127,7 +127,10 @@ int main(void) {
 
     /* Test random values */
     printf("\nTesting 10000 random values...\n");
-    srand(time(NULL));
+    /* Fixed default seed => reproducible teaching output; override with
+     * PQC_DEMO_SEED. */
+    const char *demo_seed_env = getenv("PQC_DEMO_SEED");
+    srand(demo_seed_env ? (unsigned)strtoul(demo_seed_env, NULL, 10) : 1234567u);
 
     int failures = 0;
     for (int i = 0; i < 10000; i++) {

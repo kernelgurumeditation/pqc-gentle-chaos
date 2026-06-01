@@ -1,0 +1,5 @@
+Bit packing test (10-bit): 0 errors
+Original size: 512 bytes
+Packed size: 320 bytes
+Compression ratio: 1.60x
+[PASS] pack/unpack round-trip exact for all 256 values

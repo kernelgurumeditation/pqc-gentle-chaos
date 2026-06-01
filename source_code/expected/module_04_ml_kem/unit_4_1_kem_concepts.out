@@ -1,0 +1,42 @@
+╔════════════════════════════════════════════════════════╗
+║  Unit 4.1: KEM Concepts and Security Definitions       ║
+╚════════════════════════════════════════════════════════╝
+
+=== KEM Usage Demonstration ===
+
+Step 1: Key Generation
+  Encapsulation key (public): 50ca0f5e22a6eb4fea30c66c72dc7415...
+  Decapsulation key (private): 50ca0f5e22a6eb4fea30c66c72dc7415...
+
+Step 2: Encapsulation (sender side)
+  Ciphertext: b651d5d24ccbf73d2d282f92fba8aee6...
+  Sender's shared secret: f1bb05c877d6b92b0d3ab4d8b34af44a...
+
+Step 3: Decapsulation (recipient side)
+  Recipient's shared secret: f1bb05c877d6b92b0d3ab4d8b34af44a...
+
+Step 4: Verification
+  ✓ Shared secrets MATCH
+
+=== CCA Attack Demonstration ===
+
+Original shared secret:
+  K: bb8fbe76c1c127abd7dc4fbefd429a2e...
+
+Attacker flips bit in ciphertext...
+
+Decapsulation of modified ciphertext:
+  K': 9acd361c600db5e3362518461c799f47...
+
+  Note: K ≠ K' (modified ciphertext gives different key)
+  In real ML-KEM with FO transform:
+  - This is 'implicit rejection'
+  - Attacker can't tell if ciphertext was valid
+
+════════════════════════════════════════════════════════════
+Key Takeaways:
+  1. KEM generates random key (not sender-chosen message)
+  2. Three operations: KeyGen, Encaps, Decaps
+  3. Correctness: Decaps(dk, Encaps(ek)) = K
+  4. IND-CCA2 security protects against chosen-ciphertext attacks
+════════════════════════════════════════════════════════════

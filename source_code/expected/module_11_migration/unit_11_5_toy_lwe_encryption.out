@@ -1,0 +1,11 @@
+=== Toy LWE Encryption ===
+Parameters: n=16, m=32, q=97
+
+Keys generated.
+Tested 1000 encryptions
+Decryption errors: 0 (0.00%)
+
+--- Detailed Example ---
+Original:  1
+Decrypted: 1
+Status: SUCCESS

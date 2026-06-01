@@ -7,6 +7,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>   /* EXIT_SUCCESS / EXIT_FAILURE for the PASS/FAIL verdict */
 #include <stdint.h>
 #include <string.h>
 
@@ -483,6 +484,16 @@ int main(void) {
     }
     printf("\nDecryption %s!\n", correct ? "CORRECT" : "FAILED");
 
+    /* Explicit verdict after decapsulation: the recovered plaintext must
+     * exactly match what was encrypted, otherwise the round-trip is broken.
+     * Emit a machine-checkable PASS/FAIL line and a proper exit code so this
+     * demo can be used as a regression test, not just a visual demo. */
+    if (!correct) {
+        fprintf(stderr, "FAIL: shared secret mismatch\n");
+        return EXIT_FAILURE;
+    }
+    printf("PASS\n");
+
     /* === Demonstrate malleability attack === */
     demonstrate_malleability();
 
@@ -498,5 +509,5 @@ int main(void) {
     printf("\nNote: Real ML-KEM uses compression to achieve these sizes.\n");
     printf("This educational implementation doesn't include compression.\n");
 
-    return 0;
+    return EXIT_SUCCESS;
 }

@@ -42,11 +42,30 @@ int test_liboqs_kem(void) {
     uint8_t *ss_enc = malloc(kem->length_shared_secret);
     uint8_t *ss_dec = malloc(kem->length_shared_secret);
 
-    OQS_KEM_keypair(kem, pk, sk);
-    OQS_KEM_encaps(kem, ct, ss_enc, pk);
-    OQS_KEM_decaps(kem, ss_dec, ct, sk);
+    if (pk == NULL || sk == NULL || ct == NULL || ss_enc == NULL || ss_dec == NULL) {
+        printf("FAILED (out of memory)\n");
+        free(pk);
+        free(sk);
+        free(ct);
+        free(ss_enc);
+        free(ss_dec);
+        OQS_KEM_free(kem);
+        return 0;
+    }
 
-    int success = (memcmp(ss_enc, ss_dec, kem->length_shared_secret) == 0);
+    /* Every liboqs call returns OQS_STATUS; abort the test on any failure
+       so we never compare uninitialized shared-secret buffers. */
+    int success = 0;
+    if (OQS_KEM_keypair(kem, pk, sk) != OQS_SUCCESS) {
+        printf("FAILED (keypair)\n");
+    } else if (OQS_KEM_encaps(kem, ct, ss_enc, pk) != OQS_SUCCESS) {
+        printf("FAILED (encaps)\n");
+    } else if (OQS_KEM_decaps(kem, ss_dec, ct, sk) != OQS_SUCCESS) {
+        printf("FAILED (decaps)\n");
+    } else {
+        success = (memcmp(ss_enc, ss_dec, kem->length_shared_secret) == 0);
+        printf("%s\n", success ? "OK" : "FAILED");
+    }
 
     OQS_MEM_secure_free(sk, kem->length_secret_key);
     OQS_MEM_secure_free(ss_enc, kem->length_shared_secret);
@@ -55,7 +74,6 @@ int test_liboqs_kem(void) {
     free(ct);
     OQS_KEM_free(kem);
 
-    printf("%s\n", success ? "OK" : "FAILED");
     return success;
 }
 
@@ -75,17 +93,33 @@ int test_liboqs_sig(void) {
 
     const uint8_t message[] = "Hello, Post-Quantum World!";
 
-    OQS_SIG_keypair(sig, pk, sk);
-    OQS_SIG_sign(sig, signature, &sig_len, message, sizeof(message) - 1, sk);
-    int valid = (OQS_SIG_verify(sig, message, sizeof(message) - 1,
+    if (pk == NULL || sk == NULL || signature == NULL) {
+        printf("FAILED (out of memory)\n");
+        free(pk);
+        free(sk);
+        free(signature);
+        OQS_SIG_free(sig);
+        return 0;
+    }
+
+    /* Check every OQS_STATUS before relying on the signature buffer. */
+    int valid = 0;
+    if (OQS_SIG_keypair(sig, pk, sk) != OQS_SUCCESS) {
+        printf("FAILED (keypair)\n");
+    } else if (OQS_SIG_sign(sig, signature, &sig_len,
+                            message, sizeof(message) - 1, sk) != OQS_SUCCESS) {
+        printf("FAILED (sign)\n");
+    } else {
+        valid = (OQS_SIG_verify(sig, message, sizeof(message) - 1,
                                 signature, sig_len, pk) == OQS_SUCCESS);
+        printf("%s\n", valid ? "OK" : "FAILED");
+    }
 
     OQS_MEM_secure_free(sk, sig->length_secret_key);
     free(pk);
     free(signature);
     OQS_SIG_free(sig);
 
-    printf("%s\n", valid ? "OK" : "FAILED");
     return valid;
 }
 

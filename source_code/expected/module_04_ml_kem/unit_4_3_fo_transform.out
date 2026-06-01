@@ -1,0 +1,47 @@
+╔════════════════════════════════════════════════════════════╗
+║  Unit 4.3: Fujisaki-Okamoto Transform                      ║
+╚════════════════════════════════════════════════════════════╝
+
+=== Valid Encapsulation/Decapsulation ===
+
+Public key (ek): 500f22ebeac67274a5f6a7ef4a9c3af0...
+Rejection secret (z): e69bda8c6e6d1c72c718e9fe8974daf3...
+
+Ciphertext: 339a68c4659f2d61081d1353219a68fb...
+Sender's key: 8f244a0e9513fcf2ab2b1d04d1cee326...
+
+Receiver's key: 8f244a0e9513fcf2ab2b1d04d1cee326...
+
+✓ Keys MATCH - valid encapsulation
+
+=== Invalid Ciphertext (Modified) ===
+
+Original ciphertext: 2617e7d39016d4f0951a2538b6fe5ccf...
+Sender's key: 3c26622c82e3fd9ad89887e63ea909c1...
+
+Modified ciphertext: 2717e7d39016d4f0951a2538b6fe5ccf...
+(Attacker flipped bit 0)
+
+Receiver's key (from modified ct): ddb7d9a363067279f95dbe459f20e981...
+
+✓ Keys DO NOT MATCH - implicit rejection triggered
+  Attacker gets random-looking key, can't tell it's rejected
+
+=== Implicit Rejection Consistency ===
+
+Garbage ciphertext: 9417ffeb05d32d0c8ef29eb1a64c0068...
+First decaps result: 85c4b52b0b4d16d3a15ebc7c475b74cd...
+Second decaps result: 85c4b52b0b4d16d3a15ebc7c475b74cd...
+
+✓ Same garbage → same key (deterministic rejection)
+  This is essential: attacker can't detect rejection
+  by querying same ciphertext multiple times
+
+════════════════════════════════════════════════════════════
+Key Points:
+  1. FO transform: CPA encryption → CCA KEM
+  2. Re-encryption check detects tampering
+  3. Implicit rejection: invalid → random-looking key
+  4. Same invalid ct → same rejection key (consistent)
+  5. All comparisons must be constant-time
+════════════════════════════════════════════════════════════

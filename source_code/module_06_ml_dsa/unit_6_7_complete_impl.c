@@ -120,8 +120,8 @@ static int32_t montgomery_reduce(int64_t a) {
 /* Barrett reduction */
 static int32_t barrett_reduce(int32_t a) {
     /* Using precomputed constant for q = 8380417 */
-    const int32_t v = 8396807;  /* floor(2^26 / q) + 1 */
-    int32_t t = (int64_t)v * a >> 26;
+    const int32_t v = 8396807;  /* floor(2^46 / q) */
+    int32_t t = (int64_t)v * a >> 46;
     t *= MLDSA_Q;
     return a - t;
 }
@@ -362,6 +362,13 @@ static void poly_sample_uniform(poly *p, const uint8_t seed[SEEDBYTES],
             p->coeffs[ctr++] = val;
         }
     }
+    /* Rejection sampling may exhaust the buffer before filling all N
+       coefficients. Deterministically zero any remainder so that A is
+       identical between signing and verification (a real implementation
+       would squeeze more SHAKE output instead of zero-padding). */
+    while (ctr < MLDSA_N) {
+        p->coeffs[ctr++] = 0;
+    }
 }
 
 /* Sample masking polynomial with coefficients in [-GAMMA1+1, GAMMA1] */
@@ -529,6 +536,27 @@ static void matrix_vector_mul(polyveck *t, const poly A[MLDSA_K][MLDSA_L],
     }
 }
 
+/* Pack t1 (10 bits/coeff) into bytes: 4 coefficients -> 5 bytes.
+   Builds the canonical public-key byte string used for tr = H(pk).
+   This must be byte-identical in key generation and verification so that
+   tr (and hence mu and the challenge c_tilde) agree on both sides. */
+static void pack_t1(uint8_t *out, const polyveck *t1) {
+    int o = 0;
+    for (int i = 0; i < MLDSA_K; i++) {
+        for (int j = 0; j < MLDSA_N; j += 4) {
+            uint32_t a0 = (uint32_t)t1->vec[i].coeffs[j + 0] & 0x3FF;
+            uint32_t a1 = (uint32_t)t1->vec[i].coeffs[j + 1] & 0x3FF;
+            uint32_t a2 = (uint32_t)t1->vec[i].coeffs[j + 2] & 0x3FF;
+            uint32_t a3 = (uint32_t)t1->vec[i].coeffs[j + 3] & 0x3FF;
+            out[o++] = (uint8_t)(a0);
+            out[o++] = (uint8_t)((a0 >> 8) | (a1 << 2));
+            out[o++] = (uint8_t)((a1 >> 6) | (a2 << 4));
+            out[o++] = (uint8_t)((a2 >> 4) | (a3 << 6));
+            out[o++] = (uint8_t)(a3 >> 2);
+        }
+    }
+}
+
 /* ============================================
  * SECTION 11: KEY GENERATION
  * ============================================ */
@@ -571,21 +599,27 @@ int mldsa_keygen(mldsa_pk *pk, mldsa_sk *sk, const uint8_t seed[SEEDBYTES]) {
     /* Decompose t into (t1, t0) */
     for (int i = 0; i < MLDSA_K; i++) {
         for (int j = 0; j < MLDSA_N; j++) {
+            /* Power2Round: r = r1*2^D + r0 with r0 the CENTERED remainder.
+               t1 must be derived from the centered t0 (not the raw floor),
+               otherwise t1*2^D + t0 != t and verification reconstruction
+               (A*z - c*t1*2^D) is off by multiples of 2^D. */
             int32_t t_val = mod_q(t.vec[i].coeffs[j]);
-            pk->t1.vec[i].coeffs[j] = t_val >> MLDSA_D;
-            sk->t0.vec[i].coeffs[j] = t_val & ((1 << MLDSA_D) - 1);
-            /* Center t0 */
-            if (sk->t0.vec[i].coeffs[j] > (1 << (MLDSA_D - 1))) {
-                sk->t0.vec[i].coeffs[j] -= (1 << MLDSA_D);
+            int32_t t0c = t_val & ((1 << MLDSA_D) - 1);
+            if (t0c > (1 << (MLDSA_D - 1))) {
+                t0c -= (1 << MLDSA_D);
             }
+            sk->t0.vec[i].coeffs[j] = t0c;
+            pk->t1.vec[i].coeffs[j] = (t_val - t0c) >> MLDSA_D;
         }
     }
 
-    /* Compute tr = H(pk) */
-    uint8_t pk_bytes[PK_BYTES];
-    /* Serialize pk (simplified) */
+    /* Compute tr = H(pk), where pk = rho || pack(t1).  pk_bytes must be
+       fully initialised (zero-init + pack t1) so that the identical byte
+       string is hashed here and during verification; otherwise tr, mu and
+       c_tilde would diverge between signer and verifier. */
+    uint8_t pk_bytes[PK_BYTES] = {0};
     memcpy(pk_bytes, pk->rho, SEEDBYTES);
-    /* ... pack t1 ... */
+    pack_t1(pk_bytes + SEEDBYTES, &pk->t1);
     shake256(sk->tr, 64, pk_bytes, PK_BYTES);
 
     return 0;
@@ -646,8 +680,16 @@ int mldsa_sign(mldsa_sig *sig, const uint8_t *msg, size_t msglen,
         }
 
         /* Compute challenge: c_tilde = H(mu || w1_encode) */
-        uint8_t w1_packed[MLDSA_K * MLDSA_N / 2];  /* Simplified */
-        /* ... pack w1 ... */
+        uint8_t w1_packed[MLDSA_K * MLDSA_N / 2] = {0};
+        /* Pack w1: each coefficient fits in 4 bits for gamma2=(q-1)/32.
+           Must match the verifier's w1' packing exactly. */
+        for (int i = 0; i < MLDSA_K; i++) {
+            for (int j = 0; j < MLDSA_N / 2; j++) {
+                w1_packed[i * (MLDSA_N / 2) + j] =
+                    (uint8_t)((w1.vec[i].coeffs[2*j]   & 0xF) |
+                             ((w1.vec[i].coeffs[2*j+1] & 0xF) << 4));
+            }
+        }
         uint8_t challenge_input[64 + sizeof(w1_packed)];
         memcpy(challenge_input, mu, 64);
         memcpy(challenge_input + 64, w1_packed, sizeof(w1_packed));
@@ -748,7 +790,11 @@ int mldsa_sign(mldsa_sig *sig, const uint8_t *msg, size_t msglen,
                 int32_t r = w.vec[i].coeffs[j] - cs2.vec[i].coeffs[j];
                 int32_t ct0_val = ct0.vec[i].coeffs[j];
 
-                sig->h[i][j] = make_hint(-ct0_val, r);
+                /* FIPS 204: h = MakeHint(-c*t0, w - c*s2 + c*t0).
+                   The verifier reconstructs w' = A*z - c*t1*2^D = w - c*s2 + c*t0,
+                   so the hint must be computed on that same value (r + c*t0),
+                   not on r alone. */
+                sig->h[i][j] = make_hint(-ct0_val, r + ct0_val);
                 sig->h_count += sig->h[i][j];
             }
         }
@@ -800,9 +846,9 @@ int mldsa_verify(const mldsa_pk *pk, const uint8_t *msg, size_t msglen,
     expand_A(A, pk->rho);
 
     /* Compute message hash */
-    uint8_t pk_bytes[PK_BYTES];
+    uint8_t pk_bytes[PK_BYTES] = {0};
     memcpy(pk_bytes, pk->rho, SEEDBYTES);
-    /* ... serialize full pk ... */
+    pack_t1(pk_bytes + SEEDBYTES, &pk->t1);
     uint8_t tr[64];
     shake256(tr, 64, pk_bytes, PK_BYTES);
 

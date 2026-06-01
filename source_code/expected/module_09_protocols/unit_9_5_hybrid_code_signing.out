@@ -1,0 +1,24 @@
+Signed artifact attestation (Sigstore-style):
+  Artifact:    sha256:0000000000000000000000000000000000000000000000000000000000000000
+  Key ref:     awskms:///alias/pqc-mldsa65
+  Sig alg:     ML-DSA-65
+  Sig length:  3309 bytes
+
+Real cosign invocation:
+  cosign sign --key awskms:///alias/pqc-mldsa65 <image-ref>
+  cosign verify --key awskms:///alias/pqc-mldsa65 <image-ref>
+
+Policy enforcement example (Kyverno):
+  spec:
+    verifyImages:
+      - imageReferences: [ "*" ]
+        attestors:
+          - entries:
+              - keyless:
+                  subject: "https://my-ci/*"
+                  issuer:  "https://my-oidc-issuer/"
+                  signatureAlgorithm: ML-DSA-65
+
+Note: For long-lived bootloader and firmware signing, prefer
+LMS/XMSS (stateful, SP 800-208) over ML-DSA. See Unit 7.2 and
+Unit 11.9.7 Scenario C for algorithm selection guidance.

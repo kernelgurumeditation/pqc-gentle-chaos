@@ -16,21 +16,26 @@ static const uint8_t oid_ed25519[] = {0x2b, 0x65, 0x70};
 static const uint8_t oid_ml_dsa_65[] = {0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x12};
 static const uint8_t oid_ecdsa_p256[] = {0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01};
 static const uint8_t oid_ecdsa_p384[] = {0x2b, 0x81, 0x04, 0x00, 0x22};
+/* id-MLDSA65-Ed25519-SHA512 = 1.3.6.1.4.1.114027.80.8.1.27
+ * (Entrust arc, as registered by draft-ietf-lamps-pq-composite-sigs /
+ *  RFC 9881; matches the 1.3.6.1.4.1.114027 arc cited in composite_keys.h).
+ * NOTE: an earlier revision of this file held bytes that decoded to the
+ * private 2.16.840.1.113747... arc, which did NOT match the header. */
 static const uint8_t oid_composite_mldsa65_ed25519[] = {
-    0x60, 0x86, 0x48, 0x01, 0x86, 0xf8, 0x53, 0x50, 0x08, 0x01, 0x02
+    0x2b, 0x06, 0x01, 0x04, 0x01, 0x86, 0xfa, 0x6b, 0x50, 0x08, 0x01, 0x1b
 };
 
 /* Common Name OID: 2.5.4.3 */
 static const uint8_t oid_common_name[] = {0x55, 0x04, 0x03};
 
-/* Subject Key Identifier OID: 2.5.29.14 */
-static const uint8_t oid_subject_key_id[] = {0x55, 0x1d, 0x0e};
+/* Subject Key Identifier OID: 2.5.29.14 (educational reference; not wired up) */
+static const uint8_t oid_subject_key_id[] __attribute__((unused)) = {0x55, 0x1d, 0x0e};
 
 /* Basic Constraints OID: 2.5.29.19 */
 static const uint8_t oid_basic_constraints[] = {0x55, 0x1d, 0x13};
 
-/* Key Usage OID: 2.5.29.15 */
-static const uint8_t oid_key_usage[] = {0x55, 0x1d, 0x0f};
+/* Key Usage OID: 2.5.29.15 (educational reference; not wired up) */
+static const uint8_t oid_key_usage[] __attribute__((unused)) = {0x55, 0x1d, 0x0f};
 
 /*
  * ASN.1 Buffer Management
@@ -590,13 +595,16 @@ int encode_composite_spki(asn1_buffer_t *buf, const composite_keypair_t *keypair
     }
 
     /* Build CompositePublicKey SEQUENCE */
-    /* First component: classical SPKI */
+    /* First component: classical SPKI.
+     * Point .public_key directly at the caller-owned classical_pk array
+     * (same pattern as the PQC component below). Do NOT memcpy through the
+     * pointer: spki_t.public_key is const and starts NULL, so casting away
+     * const and writing to it would be undefined behavior. */
     spki_t classical_spki = {
         .algorithm = keypair->classical_alg,
+        .public_key = keypair->classical_pk,
         .public_key_len = keypair->classical_pk_len
     };
-    memcpy((uint8_t *)classical_spki.public_key, keypair->classical_pk,
-           keypair->classical_pk_len);
 
     asn1_buffer_t classical_buf;
     ret = asn1_buffer_init(&classical_buf, 256);

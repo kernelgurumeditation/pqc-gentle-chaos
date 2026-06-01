@@ -172,7 +172,7 @@ All programs in this module:
 |-----------|--------------|
 | Public Key | 1,952 |
 | Secret Key | 4,032 |
-| Signature | ~3,293 |
+| Signature | ~3,309 |
 
 ## Testing Notes
 
@@ -201,7 +201,7 @@ All programs in this module:
 
 Each program corresponds to a specific section in the PQC Developer's Handbook:
 
-- **Module 6 location:** Lines 14153-24420 in `/home/nuno/next-gig/pqc-developers-handbook.md`
+- **Module 6 location:** Module 6 in `pqc-developers-handbook.md`
 - **Related modules:** Module 2 (Math Foundations), Module 3 (Lattice Crypto), Module 5 (Signatures)
 
 ## Directory Structure

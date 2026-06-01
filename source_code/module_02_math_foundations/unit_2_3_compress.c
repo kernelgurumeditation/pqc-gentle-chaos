@@ -46,6 +46,7 @@ int main(void) {
 
     // Show maximum error for each d
     printf("Maximum compression error analysis:\n");
+    int ok = 1;
     for (int di = 0; di < 3; di++) {
         int d = d_values[di];
         int max_error = 0;
@@ -53,13 +54,28 @@ int main(void) {
         for (int x = 0; x < Q; x++) {
             uint16_t c = compress(x, d);
             uint16_t x_prime = decompress(c, d);
-            int error = abs((int)x - (int)x_prime);
+            // Measure the error AS A DISTANCE MODULO Q (centered).  The raw
+            // |x - x'| over-counts the wraparound boundary: e.g. x = Q-1
+            // compresses to 0, and decompress(0) = 0, which is correct because
+            // Q-1 ≡ -1 is the *nearest* representative to 0 mod Q.  The true
+            // round-trip error is therefore min(|x-x'|, Q-|x-x'|).
+            int diff = abs((int)x - (int)x_prime);
+            int error = diff < Q - diff ? diff : Q - diff;
             if (error > max_error) max_error = error;
         }
 
+        int theoretical = Q / (1 << (d + 1));
         printf("  d = %2d: max error = %d (theoretical: ~%d)\n",
-               d, max_error, Q / (1 << (d + 1)));
+               d, max_error, theoretical);
+        // With the modular (centered) metric the round-trip error is bounded by
+        // the quantization half-step; allow a small +1 slack for the asymmetric
+        // integer rounding in compress()/decompress().
+        if (max_error > theoretical + 1) ok = 0;
     }
 
-    return 0;
+    printf(ok ? "[PASS] compression error within theoretical bound\n"
+              : "[FAIL] compression error exceeded theoretical bound\n");
+
+    /* Nonzero exit on failure so the test harness can detect it. */
+    return ok ? 0 : 1;
 }

@@ -20,11 +20,35 @@
 
 #define N 8           /* Polynomial degree (toy size) */
 #define K 2           /* Module rank */
-#define Q 257         /* Modulus (prime, close to 2^8 for easy compression) */
+#define Q 3329        /* Modulus (the real ML-KEM prime; ~2^11.7) */
 #define ETA1 2        /* Secret/error bound */
 #define ETA2 2        /* Ciphertext error bound */
-#define DU 4          /* Compression bits for u */
-#define DV 3          /* Compression bits for v */
+#define DU 11         /* Compression bits for u (near-lossless: d ~ log2(Q)) */
+#define DV 11         /* Compression bits for v (near-lossless: d ~ log2(Q)) */
+
+/*
+ * Why these compression parameters?
+ * -----------------------------------------------------------------------
+ * Decryption recovers  w = v - s^T u = encode(m) + noise.  For correct
+ * decoding every |noise coefficient| must stay below the Q/4 threshold.
+ * The noise has two sources:
+ *
+ *   1. Inherent LWE noise   e^T r + e2 - s^T e1     (bounded by ~ETA)
+ *   2. Compression error    introduced by Compress/Decompress of u and v
+ *
+ * The compression error of a single coefficient compressed with d bits is
+ * bounded by  Q / 2^(d+1).  The u-error is additionally amplified by s^T
+ * (K*N secret coefficients, each up to ETA).  The original toy set
+ * (Q=257, d_u=4, d_v=3) gave a per-coefficient compression error of up to
+ * ~Q/16 ≈ 16, which combined with the s^T amplification overran the Q/4
+ * margin and made decryption fail ~30% of the time.
+ *
+ * We therefore keep the toy ring size (N=8, K=2) but use the real ML-KEM
+ * prime Q=3329 with d_u = d_v = 11 (~log2(Q)), making compression nearly
+ * lossless (error <= Q/2^12 ≈ 0.8 per coefficient).  This leaves the full
+ * Q/4 margin for the small inherent LWE noise, so decryption is reliable.
+ * The Noise Analysis printed at the end reports both terms honestly.
+ */
 
 /* ========== Polynomial Operations ========== */
 
@@ -275,7 +299,9 @@ void print_bytes(const char *name, const uint8_t *data, int len) {
 }
 
 int main(void) {
-    srand(time(NULL));
+    /* Fixed default seed => reproducible teaching output; override with PQC_DEMO_SEED. */
+    const char *demo_seed_env = getenv("PQC_DEMO_SEED");
+    srand(demo_seed_env ? (unsigned)strtoul(demo_seed_env, NULL, 10) : 1234567u);
 
     printf("╔════════════════════════════════════════════════════════╗\n");
     printf("║  Unit 4.2: K-PKE Implementation Demo                   ║\n");
@@ -321,11 +347,35 @@ int main(void) {
         printf("✗ Decryption FAILED - messages differ!\n");
     }
 
-    /* Noise analysis */
+    /* Noise analysis (honest: includes BOTH inherent and compression noise) */
     printf("\n=== Noise Analysis ===\n");
-    printf("With η=%d, typical coefficient noise ≈ %d\n", ETA1, 4 * ETA1);
-    printf("Decision threshold = Q/4 = %d\n", Q/4);
-    printf("Margin for error = %d - %d = %d\n", Q/4, 4*ETA1, Q/4 - 4*ETA1);
+    printf("Decryption recovers  w = v - s^T u = encode(m) + noise.\n");
+    printf("Correct decoding needs every |noise coeff| < Q/4 = %d.\n\n", Q/4);
+
+    /* 1. Inherent LWE noise: e^T r + e2 - s^T e1.
+     *    Each of the ~2*K*N products is bounded by ETA*ETA, plus the e2 term. */
+    int inherent = 2 * K * N * ETA1 * ETA2 + ETA2;
+    printf("1) Inherent LWE noise  (e^T r + e2 - s^T e1)\n");
+    printf("   worst-case bound ≈ 2*K*N*η₁*η₂ + η₂ = %d\n", inherent);
+
+    /* 2. Compression error. Per-coefficient error is bounded by Q/2^(d+1).
+     *    The u-error is amplified by s^T (K*N secret coeffs, each up to ETA1). */
+    int v_comp = (Q + (1 << DV)) / (1 << (DV + 1));        /* ceil(Q/2^(dv+1)) */
+    int u_comp = (Q + (1 << DU)) / (1 << (DU + 1));        /* ceil(Q/2^(du+1)) */
+    int u_comp_amp = K * N * ETA1 * u_comp;                /* amplified by s^T */
+    printf("2) Compression error   (Decompress(Compress(.)) rounding)\n");
+    printf("   v term  <= Q/2^(d_v+1)            = %d\n", v_comp);
+    printf("   u term  <= K*N*η₁ * Q/2^(d_u+1)   = %d\n", u_comp_amp);
+
+    /* Honest total margin */
+    int total_noise = inherent + v_comp + u_comp_amp;
+    printf("\nTotal worst-case noise ≈ %d (inherent %d + compression %d)\n",
+           total_noise, inherent, v_comp + u_comp_amp);
+    printf("Decision threshold     = Q/4 = %d\n", Q/4);
+    printf("Margin for error       = %d - %d = %d  (%s)\n",
+           Q/4, total_noise, Q/4 - total_noise,
+           (Q/4 - total_noise > 0) ? "OK: reliable decryption"
+                                   : "TOO TIGHT: decryption may fail");
 
     printf("\n");
     printf("════════════════════════════════════════════════════════════\n");

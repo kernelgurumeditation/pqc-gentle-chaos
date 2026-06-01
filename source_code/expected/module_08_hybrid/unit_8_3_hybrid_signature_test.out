@@ -1,0 +1,34 @@
+=== Hybrid Signature Demo ===
+
+test_hybrid_basic: PASSED
+test_hybrid_wrong_message: PASSED (demo)
+test_hybrid_modified_signature: PASSED (demo)
+  - Ed25519 component modification detected
+  - ML-DSA component modification detected
+
+=== Hybrid Signature Structure ===
+
+Hybrid signatures combine:
+  - Ed25519: Classical elliptic curve signature
+  - ML-DSA-65: Post-quantum lattice-based signature
+
+Sizes:
+  Public key:  1984 bytes (32 + 1952)
+  Secret key:  4096 bytes (64 + 4032)
+  Signature:   3373 bytes (64 + 3309)
+
+Signing Flow:
+  1. sig1 = Ed25519.Sign(sk1, message)
+  2. sig2 = ML-DSA.Sign(sk2, message)
+  3. hybrid_sig = sig1 || sig2
+
+Verification Flow:
+  1. Verify Ed25519 signature
+  2. Verify ML-DSA signature
+  3. Accept only if BOTH verify
+
+Security: Secure if EITHER Ed25519 OR ML-DSA is secure
+  - Classical attackers cannot forge Ed25519
+  - Quantum attackers cannot forge ML-DSA
+
+All tests passed!

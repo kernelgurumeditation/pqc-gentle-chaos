@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use this handbook, please cite it as below."
+title: "Post-Quantum Cryptography Developer's Handbook"
+abstract: >-
+  A learning notebook and reference for C/C++ developers covering FIPS 203
+  (ML-KEM), FIPS 204 (ML-DSA), FIPS 205 (SLH-DSA), draft FIPS 206 (FN-DSA),
+  hybrid cryptography, protocol integration, and migration of legacy
+  codebases to post-quantum cryptography. Eleven modules, ~226 exercises,
+  with runnable C reference programs.
+type: software
+authors:
+  - family-names: Felicio
+    given-names: Nuno
+    email: nuno.felicio@gmail.com
+version: "10.1"
+date-released: "2026-04-25"
+license: Apache-2.0
+repository-code: "https://github.com/kernelgurumeditation/pqc-gentle-chaos"
+url: "https://github.com/kernelgurumeditation/pqc-gentle-chaos"
+keywords:
+  - post-quantum cryptography
+  - ML-KEM
+  - ML-DSA
+  - SLH-DSA
+  - FIPS 203
+  - FIPS 204
+  - FIPS 205
+  - lattice cryptography
+  - hybrid cryptography
+  - cryptographic migration
+  - reference book

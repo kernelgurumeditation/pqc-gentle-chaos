@@ -1,0 +1,10 @@
+# Built binary (regenerate with `make`)
+capstone_hybrid_channel
+
+# Transient check scratch
+.check.out
+.check.diff
+
+# Golden-output fixtures ARE tracked test data, not build artifacts.
+!expected/
+!expected/**

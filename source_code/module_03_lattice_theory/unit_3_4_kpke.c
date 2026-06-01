@@ -504,5 +504,9 @@ int main(void) {
     printf("\nNote: Real ML-KEM uses compression to achieve these sizes.\n");
     printf("This educational implementation doesn't include compression.\n");
 
-    return 0;
+    /* Explicit success/failure verdict: the basic encrypt/decrypt round-trip MUST
+     * recover the original message for the fixed seed/coins. (The malleability
+     * section above is an intentional attack demo, not a correctness failure.) */
+    printf("\n=== RESULT: %s ===\n", correct ? "PASS" : "FAIL");
+    return correct ? 0 : 1;
 }

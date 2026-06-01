@@ -64,5 +64,6 @@ int main(void) {
         printf("\nERROR: Unexpected result!\n");
     }
 
-    return 0;
+    /* Nonzero exit on failure so the test harness can detect it. */
+    return is_minus_one ? 0 : 1;
 }

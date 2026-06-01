@@ -1,0 +1,31 @@
+Compression/Decompression Examples (Q = 3329)
+
+d = 4 (range [0, 15]):
+     0 ->    0 ->    0  (error:   +0)
+   100 ->    0 ->    0  (error: +100)
+   500 ->    2 ->  416  (error:  +84)
+  1500 ->    7 -> 1456  (error:  +44)
+  2500 ->   12 -> 2497  (error:   +3)
+  3328 ->    0 ->    0  (error: +3328)
+
+d = 10 (range [0, 1023]):
+     0 ->    0 ->    0  (error:   +0)
+   100 ->   31 ->  101  (error:   -1)
+   500 ->  154 ->  501  (error:   -1)
+  1500 ->  461 -> 1499  (error:   +1)
+  2500 ->  769 -> 2500  (error:   +0)
+  3328 ->    0 ->    0  (error: +3328)
+
+d = 12 (range [0, 4095]):
+     0 ->    0 ->    0  (error:   +0)
+   100 ->  123 ->  100  (error:   +0)
+   500 ->  615 ->  500  (error:   +0)
+  1500 -> 1846 -> 1500  (error:   +0)
+  2500 -> 3076 -> 2500  (error:   +0)
+  3328 -> 4095 -> 3328  (error:   +0)
+
+Maximum compression error analysis:
+  d =  4: max error = 104 (theoretical: ~104)
+  d = 10: max error = 2 (theoretical: ~1)
+  d = 12: max error = 0 (theoretical: ~0)
+[PASS] compression error within theoretical bound

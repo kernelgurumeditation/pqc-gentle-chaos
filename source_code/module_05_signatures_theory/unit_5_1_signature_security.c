@@ -127,7 +127,7 @@ int verify(const public_key *pk, const uint8_t *msg, size_t msg_len,
 /*
  * Demonstrate correctness
  */
-void demo_correctness(void) {
+int demo_correctness(void) {
     printf("\n=== Correctness Demonstration ===\n\n");
 
     public_key pk;
@@ -150,12 +150,15 @@ void demo_correctness(void) {
     printf("Message: \"%s\"\n", msg);
     printf("Signature: (r=%u, s=%u)\n", sig.r, sig.s);
     printf("Verification: %s\n", valid ? "VALID ✓" : "INVALID ✗");
+
+    /* PASS = an honestly produced signature verifies. */
+    return valid;
 }
 
 /*
  * Demonstrate EUF-CMA game
  */
-void demo_eufcma(void) {
+int demo_eufcma(void) {
     printf("\n=== EUF-CMA Game Demonstration ===\n\n");
 
     /* Challenger generates keys */
@@ -206,12 +209,15 @@ void demo_eufcma(void) {
     printf("  1. Compute discrete log: find x such that y = g^x\n");
     printf("  2. Or find collision in hash function\n");
     printf("  Both are computationally hard for real parameters.\n");
+
+    /* PASS = the random-guess forgery is correctly REJECTED. */
+    return !forged;
 }
 
 /*
  * Demonstrate nonce reuse vulnerability
  */
-void demo_nonce_reuse_attack(void) {
+int demo_nonce_reuse_attack(void) {
     printf("\n=== Nonce Reuse Attack Demonstration ===\n\n");
 
     public_key pk;
@@ -284,27 +290,40 @@ void demo_nonce_reuse_attack(void) {
 
     printf("\n*** LESSON: Never reuse nonces in Schnorr/ECDSA signatures! ***\n");
     printf("*** This is why ML-DSA uses deterministic nonce derivation. ***\n");
+
+    /* PASS = the nonce-reuse attack recovers the secret key (lesson holds). */
+    return (recovered_x == secret_x);
 }
 
 /*
  * Main demonstration
  */
 int main(void) {
-    srand(time(NULL));
+    /* Fixed default seed => reproducible teaching output; override with PQC_DEMO_SEED. */
+    const char *demo_seed_env = getenv("PQC_DEMO_SEED");
+    srand(demo_seed_env ? (unsigned)strtoul(demo_seed_env, NULL, 10) : 1234567u);
 
     printf("=== Digital Signature Security Concepts ===\n");
     printf("Educational demonstration using Schnorr-like signatures\n");
     printf("Parameters: P=%u, G=%u, Q=%u\n", P, G, Q);
     printf("WARNING: These parameters are NOT secure!\n");
 
+    int all_pass = 1;
+
     /* Demonstrate correctness */
-    demo_correctness();
+    all_pass &= demo_correctness();
 
     /* Demonstrate EUF-CMA game */
-    demo_eufcma();
+    all_pass &= demo_eufcma();
 
     /* Demonstrate nonce reuse attack */
-    demo_nonce_reuse_attack();
+    all_pass &= demo_nonce_reuse_attack();
 
-    return 0;
+    printf("\n==============================================\n");
+    printf("Overall result: %s\n",
+           all_pass ? "PASS (all checks behaved as expected)"
+                    : "FAIL (a check did not behave as expected)");
+    printf("==============================================\n");
+
+    return all_pass ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -1,0 +1,12 @@
+Polynomial arithmetic in R_q = Z_3329[X]/(X^256 + 1)
+
+a(X) = 2X^2 + 3X + 1
+b(X) = 1X + 4
+a + b = 2X^2 + 4X + 5
+a - b = 2X^2 + 2X + 3326
+a × b = 2X^3 + 11X^2 + 13X + 4
+
+Demonstrating X^N ≡ -1 reduction:
+p(X) = 2X + 1
+X^255 = 1X^255
+p(X) × X^255 = 1X^255 + 3327

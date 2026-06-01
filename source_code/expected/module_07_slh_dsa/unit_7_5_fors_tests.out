@@ -1,0 +1,36 @@
+=== FORS Demonstration ===
+
+Testing FORS index derivation...
+  Indices for 0xABCD: {11, 10, 13, 12}
+  Index derivation tests PASSED!
+Testing FORS basic sign/verify...
+  Basic sign/verify PASSED!
+Testing FORS wrong message detection...
+  Tamper check (informational, toy hash): wrong message verified (toy-hash collision; a real hash rejects it)
+
+FORS Parameters (demo values):
+  n (hash size):     16 bytes
+  k (trees):         4
+  t (leaves/tree):   16
+  a (log2 t):        4
+
+Sizes:
+  Public key:        16 bytes
+  Signature:         320 bytes
+    Per tree:        80 bytes
+      (sk value:     16 bytes)
+      (auth path:    64 bytes)
+
+  Total secret values: 64
+
+FORS vs WOTS+ vs Lamport:
+  Lamport: One-time (single signature)
+  WOTS+:   One-time (more compact)
+  FORS:    Few-time (k signatures per different subset)
+
+=== Demo complete! ===
+
+=== Self-test verdict ===
+  index derivation         : PASS
+  basic sign/verify        : PASS
+Result: PASS

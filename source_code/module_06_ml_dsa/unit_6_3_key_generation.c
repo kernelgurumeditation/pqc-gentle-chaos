@@ -319,7 +319,10 @@ int main(void) {
 
     /* Generate random seed */
     uint8_t seed[32];
-    srand(time(NULL));
+    /* Fixed default seed => reproducible teaching output; override with
+     * PQC_DEMO_SEED. */
+    const char *demo_seed_env = getenv("PQC_DEMO_SEED");
+    srand(demo_seed_env ? (unsigned)strtoul(demo_seed_env, NULL, 10) : 1234567u);
     for (int i = 0; i < 32; i++) {
         seed[i] = rand() & 0xFF;
     }

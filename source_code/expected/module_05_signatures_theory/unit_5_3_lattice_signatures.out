@@ -1,0 +1,91 @@
+╔══════════════════════════════════════════════════════════════╗
+║  Unit 5.3: Lattice-Based Signatures and Rejection Sampling   ║
+╚══════════════════════════════════════════════════════════════╝
+
+=== Information Leakage Attack Demo ===
+
+Secret key s = (7, -4, 11)
+(Attacker doesn't know this)
+
+After 1000 signatures:
+  498 with c=0, 502 with c=1
+
+Average z when c=0: (1.54, -1.73, 0.20)
+Average z when c=1: (6.56, -4.62, 9.27)
+
+Recovered s = E[z|c=1] - E[z|c=0]:
+  s ≈ (5.02, -2.89, 9.07)
+
+Actual s = (7, -4, 11)
+
+*** SECRET KEY RECOVERED! ***
+
+=== Rejection Sampling Demo ===
+
+Secret key s = (7, -4, 11)
+Gaussian parameter σ = 14.0
+Repetition rate M = 13.70 (target ~14 attempts/signature)
+
+After 1000 signatures (avg 13.14 attempts each):
+  Rejection rate: 92.4% of candidates rejected
+  496 with c=0, 504 with c=1
+
+Average z when c=0: (0.00, 0.73, -0.09)
+Average z when c=1: (1.14, 1.06, 0.86)
+
+Attempted s = E[z|c=1] - E[z|c=0]:
+  s ≈ (1.14, 0.33, 0.95)
+
+Actual s = (7, -4, 11)
+
+*** With rejection sampling, attack fails! ***
+(Both averages are near 0 - no difference to exploit)
+
+=== SIS Problem Demo ===
+
+Matrix A (2×4 over Z_101):
+  [23 45 12 67]
+  [78 34 89 11]
+
+SIS Problem: Find short z ≠ 0 such that Az = 0 (mod 101)
+
+Searching for solutions with ||z||_∞ ≤ 3...
+  No solutions found with ||z||_∞ ≤ 3
+  (This is expected - finding short solutions is hard!)
+
+Note: With real parameters (n ≈ 256, q ≈ 2²³),
+finding short solutions is computationally infeasible.
+
+=== Fiat-Shamir with Aborts Demo ===
+
+This demonstrates the signing process with aborts.
+
+Attempting to sign with rejection sampling (M = 13.70):
+  Attempt 1: c=1, accept_prob=0.037, random=0.524 → REJECT (abort and retry)
+  Attempt 2: c=0, accept_prob=0.073, random=0.231 → REJECT (abort and retry)
+  Attempt 3: c=1, accept_prob=0.026, random=0.222 → REJECT (abort and retry)
+  Attempt 4: c=1, accept_prob=0.090, random=0.230 → REJECT (abort and retry)
+  Attempt 5: c=0, accept_prob=0.073, random=0.360 → REJECT (abort and retry)
+  Attempt 6: c=0, accept_prob=0.073, random=0.661 → REJECT (abort and retry)
+  Attempt 7: c=0, accept_prob=0.073, random=0.231 → REJECT (abort and retry)
+  Attempt 8: c=1, accept_prob=0.041, random=0.787 → REJECT (abort and retry)
+  Attempt 9: c=0, accept_prob=0.073, random=0.369 → REJECT (abort and retry)
+  Attempt 10: c=1, accept_prob=0.028, random=0.637 → REJECT (abort and retry)
+  Attempt 11: c=1, accept_prob=0.066, random=0.826 → REJECT (abort and retry)
+  Attempt 12: c=1, accept_prob=0.020, random=0.579 → REJECT (abort and retry)
+  ... (further rejected attempts omitted) ...
+
+Signature produced after 48 attempt(s)
+z = (3, 4, -19)
+
+═══════════════════════════════════════════════════════════════
+Key Takeaways:
+  1. Naive lattice signatures leak the secret key
+  2. Rejection sampling makes output independent of secret
+  3. Cost: Multiple attempts needed (Fiat-Shamir with Aborts)
+  4. ML-DSA uses this framework with Module-LWE/SIS
+═══════════════════════════════════════════════════════════════
+
+==============================================
+Overall result: PASS (signing demos produced valid signatures)
+==============================================

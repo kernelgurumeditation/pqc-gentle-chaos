@@ -1,0 +1,41 @@
+╔════════════════════════════════════════════════════════╗
+║  Unit 4.2: K-PKE Implementation Demo                   ║
+╚════════════════════════════════════════════════════════╝
+
+Parameters: N=8, K=2, Q=3329, η₁=2, η₂=2
+Compression: d_u=11, d_v=11
+
+=== Key Generation ===
+Secret s[0]: [1, -1, -2, 1, ...]
+Public t[0]: [-350, -383, -248, 1167, ...]
+
+=== Encryption ===
+Original message: ab
+Ciphertext u[0]: [1320, 750, 361, ...]
+Ciphertext v: [447, 1176, 1895, ...]
+
+=== Decryption ===
+Recovered message: ab
+
+✓ Decryption SUCCESSFUL - messages match!
+
+=== Noise Analysis ===
+Decryption recovers  w = v - s^T u = encode(m) + noise.
+Correct decoding needs every |noise coeff| < Q/4 = 832.
+
+1) Inherent LWE noise  (e^T r + e2 - s^T e1)
+   worst-case bound ≈ 2*K*N*η₁*η₂ + η₂ = 130
+2) Compression error   (Decompress(Compress(.)) rounding)
+   v term  <= Q/2^(d_v+1)            = 1
+   u term  <= K*N*η₁ * Q/2^(d_u+1)   = 32
+
+Total worst-case noise ≈ 163 (inherent 130 + compression 33)
+Decision threshold     = Q/4 = 832
+Margin for error       = 832 - 163 = 669  (OK: reliable decryption)
+
+════════════════════════════════════════════════════════════
+K-PKE Flow:
+  1. KeyGen: A random, s small, t = As + e
+  2. Encrypt: u = A^T r + e1, v = t^T r + e2 + encode(m)
+  3. Decrypt: w = v - s^T u = m + noise, decode(w)
+════════════════════════════════════════════════════════════

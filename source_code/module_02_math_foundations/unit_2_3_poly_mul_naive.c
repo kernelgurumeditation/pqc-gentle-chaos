@@ -75,8 +75,21 @@ int main(void) {
     // Coefficient of X^4 should be 2*1 = 2, but wraps to -2 at X^0
     // So final X^0 = 3 - 2 = 1
 
-    printf("\nVerification: const term = %d (expected 1 after X^4 wraparound)\n",
+    printf("\nVerification: const term = %d (expected 3; X^4 does NOT wrap for N=256)\n",
            r.coeffs[0]);
 
-    return 0;
+    // Known-answer check of the worked example.  With (2X^2+X+3)(X^2+2X+1):
+    //   X^0 = 3*1                = 3
+    //   X^1 = 3*2 + 1*1          = 7
+    //   X^2 = 3*1 + 1*2 + 2*1    = 7
+    //   X^3 = 1*1 + 2*2          = 5
+    //   X^4 = 2*1                = 2
+    // Since N=256, degree-4 terms stay put (no X^N+1 wraparound here).
+    int ok = (r.coeffs[0] == 3) && (r.coeffs[1] == 7) && (r.coeffs[2] == 7) &&
+             (r.coeffs[3] == 5) && (r.coeffs[4] == 2);
+    printf(ok ? "[PASS] schoolbook product matches hand computation\n"
+              : "[FAIL] schoolbook product mismatch\n");
+
+    /* Nonzero exit on failure so the test harness can detect it. */
+    return ok ? 0 : 1;
 }

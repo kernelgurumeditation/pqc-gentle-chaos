@@ -139,7 +139,7 @@ int id_verifier_check(const PublicKey *pk, uint32_t a, uint32_t c, uint32_t z) {
 /*
  * Run interactive ID protocol
  */
-void run_id_protocol(const PublicKey *pk, const SecretKey *sk,
+int run_id_protocol(const PublicKey *pk, const SecretKey *sk,
                      IDTranscript *transcript) {
     printf("\n=== Interactive Schnorr ID Protocol ===\n\n");
 
@@ -173,6 +173,9 @@ void run_id_protocol(const PublicKey *pk, const SecretKey *sk,
            (unsigned long)transcript->c,
            (unsigned long)(((uint64_t)transcript->a * mod_exp(pk->y, transcript->c, P)) % P));
     printf("  Result: %s\n", valid ? "ACCEPT ✓" : "REJECT ✗");
+
+    /* PASS = honest prover is accepted (completeness). */
+    return valid;
 }
 
 /* ========== FIAT-SHAMIR SIGNATURE ========== */
@@ -209,7 +212,7 @@ int fs_verify(const PublicKey *pk, const char *msg, const Signature *sig) {
 /*
  * Demonstrate Fiat-Shamir signature
  */
-void demo_fiat_shamir_signature(const PublicKey *pk, const SecretKey *sk) {
+int demo_fiat_shamir_signature(const PublicKey *pk, const SecretKey *sk) {
     printf("\n=== Fiat-Shamir Signature (Non-Interactive) ===\n\n");
 
     const char *msg = "Hello, Fiat-Shamir!";
@@ -236,6 +239,9 @@ void demo_fiat_shamir_signature(const PublicKey *pk, const SecretKey *sk) {
     printf("    R * y^c = %lu\n",
            (unsigned long)(((uint64_t)sig.R * mod_exp(pk->y, c, P)) % P));
     printf("  Result: %s\n", valid ? "VALID ✓" : "INVALID ✗");
+
+    /* PASS = the non-interactive signature verifies (completeness). */
+    return valid;
 }
 
 /* ========== SPECIAL SOUNDNESS DEMO ========== */
@@ -243,7 +249,7 @@ void demo_fiat_shamir_signature(const PublicKey *pk, const SecretKey *sk) {
 /*
  * Demonstrate secret extraction from two transcripts
  */
-void demo_special_soundness(const SecretKey *sk) {
+int demo_special_soundness(const SecretKey *sk) {
     printf("\n=== Special Soundness Demonstration ===\n\n");
 
     printf("Goal: Extract secret key from two transcripts with same commitment\n\n");
@@ -283,6 +289,9 @@ void demo_special_soundness(const SecretKey *sk) {
     printf("Actual secret:    x = %u\n", sk->x);
     printf("Extraction %s!\n",
            (extracted_x == sk->x) ? "SUCCEEDED" : "FAILED");
+
+    /* PASS = two transcripts extract the secret (special soundness). */
+    return (extracted_x == sk->x);
 }
 
 /* ========== HVZK SIMULATION DEMO ========== */
@@ -290,7 +299,7 @@ void demo_special_soundness(const SecretKey *sk) {
 /*
  * Simulate transcript without knowing secret
  */
-void demo_hvzk_simulation(const PublicKey *pk) {
+int demo_hvzk_simulation(const PublicKey *pk) {
     printf("\n=== HVZK Simulation Demonstration ===\n\n");
 
     printf("Goal: Create valid-looking transcript without knowing sk\n\n");
@@ -320,13 +329,18 @@ void demo_hvzk_simulation(const PublicKey *pk) {
 
     printf("This proves zero-knowledge: transcripts can be faked!\n");
     printf("Verifier learns nothing about sk from the protocol.\n");
+
+    /* PASS = the simulated (no-secret) transcript verifies (HVZK). */
+    return valid;
 }
 
 /*
  * Main demonstration
  */
 int main(void) {
-    srand(time(NULL));
+    /* Fixed default seed => reproducible teaching output; override with PQC_DEMO_SEED. */
+    const char *demo_seed_env = getenv("PQC_DEMO_SEED");
+    srand(demo_seed_env ? (unsigned)strtoul(demo_seed_env, NULL, 10) : 1234567u);
 
     printf("=== Fiat-Shamir Transform: ID Protocol → Signature ===\n");
     printf("Parameters: P=%u, Q=%u, G=%u (NOT SECURE)\n", P, Q, G);
@@ -339,18 +353,20 @@ int main(void) {
     printf("  Secret key: x = %u\n", sk.x);
     printf("  Public key: y = g^x = %u\n", pk.y);
 
+    int all_pass = 1;
+
     /* Interactive ID protocol */
     IDTranscript transcript;
-    run_id_protocol(&pk, &sk, &transcript);
+    all_pass &= run_id_protocol(&pk, &sk, &transcript);
 
     /* Fiat-Shamir signature */
-    demo_fiat_shamir_signature(&pk, &sk);
+    all_pass &= demo_fiat_shamir_signature(&pk, &sk);
 
     /* Special soundness */
-    demo_special_soundness(&sk);
+    all_pass &= demo_special_soundness(&sk);
 
     /* HVZK simulation */
-    demo_hvzk_simulation(&pk);
+    all_pass &= demo_hvzk_simulation(&pk);
 
     /* Summary */
     printf("\n=== Summary ===\n\n");
@@ -360,5 +376,11 @@ int main(void) {
     printf("4. HVZK: Transcripts can be simulated without secret\n");
     printf("5. Security: ROM proof from special soundness + HVZK\n");
 
-    return 0;
+    printf("\n==============================================\n");
+    printf("Overall result: %s\n",
+           all_pass ? "PASS (all checks behaved as expected)"
+                    : "FAIL (a check did not behave as expected)");
+    printf("==============================================\n");
+
+    return all_pass ? EXIT_SUCCESS : EXIT_FAILURE;
 }

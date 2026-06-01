@@ -62,5 +62,12 @@ int main(void) {
     printf("Compression ratio: %.2fx\n",
            (double)(N * sizeof(uint16_t)) / (double)sizeof(packed));
 
-    return 0;
+    if (errors == 0) {
+        printf("[PASS] pack/unpack round-trip exact for all %d values\n", N);
+    } else {
+        printf("[FAIL] %d round-trip mismatch(es)\n", errors);
+    }
+
+    /* Nonzero exit on failure so the test harness can detect it. */
+    return errors == 0 ? 0 : 1;
 }

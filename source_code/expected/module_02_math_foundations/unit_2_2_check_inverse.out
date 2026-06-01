@@ -1,0 +1,9 @@
+Testing multiplicative inverses in Z_n:
+
+3 in Z_7: inverse = 5 (verify: 3 × 5 = 15 ≡ 1 mod 7)
+2 in Z_6: NO INVERSE (gcd(2, 6) ≠ 1)
+5 in Z_12: inverse = 5 (verify: 5 × 5 = 25 ≡ 1 mod 12)
+4 in Z_12: NO INVERSE (gcd(4, 12) ≠ 1)
+17 in Z_3329: inverse = 1175 (verify: 17 × 1175 = 19975 ≡ 1 mod 3329)
+
+[PASS] all inverse existence/correctness checks hold

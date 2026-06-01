@@ -44,11 +44,19 @@ int main(void) {
 
     // Verify both methods give same result
     printf("Verification:\n");
+    int mismatches = 0;
     for (uint32_t a = 1; a <= 10; a++) {
         uint32_t f = fermat_inverse(a, p);
         uint32_t e = egcd_inverse(a, p);
+        // Both must agree AND actually be the inverse (a * inv ≡ 1 mod p).
+        if (f != e || ((uint64_t)a * f) % p != 1) mismatches++;
         printf("%d^(-1) mod %d: Fermat=%d, EGCD=%d, match=%s\n",
                a, p, f, e, (f == e) ? "yes" : "NO");
+    }
+    if (mismatches == 0) {
+        printf("[PASS] Fermat and EGCD agree and verify as inverses\n");
+    } else {
+        printf("[FAIL] %d inverse check(s) failed\n", mismatches);
     }
 
     // Performance comparison
@@ -68,5 +76,6 @@ int main(void) {
     printf("EGCD:   %.3f seconds\n",
            (double)(clock() - start) / CLOCKS_PER_SEC);
 
-    return 0;
+    /* Nonzero exit on failure so the test harness can detect it. */
+    return mismatches == 0 ? 0 : 1;
 }

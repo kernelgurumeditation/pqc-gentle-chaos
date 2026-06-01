@@ -1,0 +1,9 @@
+RSA Toy Example:
+p = 61, q = 53
+n = 3233
+e = 17 (public)
+d = 2753 (private)
+
+Original:  123
+Encrypted: 855
+Decrypted: 123

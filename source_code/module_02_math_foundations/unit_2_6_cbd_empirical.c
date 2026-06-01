@@ -16,7 +16,9 @@ int sample_cbd2(void) {
 }
 
 int main(void) {
-    srand(time(NULL));
+    /* Fixed default seed => reproducible teaching output; override with PQC_DEMO_SEED. */
+    const char *demo_seed_env = getenv("PQC_DEMO_SEED");
+    srand(demo_seed_env ? (unsigned)strtoul(demo_seed_env, NULL, 10) : 1234567u);
 
     int counts[5] = {0};
     int n = 100000;

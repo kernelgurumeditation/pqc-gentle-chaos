@@ -1,0 +1,16 @@
+=== ML-DSA-65 Parameter Self-Consistency Checker ===
+(Self-consistency only - NOT a NIST KAT / not vector-validated)
+
+  [PASS] q = 2^23 - 2^13 + 1                            derived=8380417 expected=8380417
+  [PASS] q (base macro)                                 derived=8380417 expected=8380417
+  [PASS] beta = tau * eta = 49 * 4                      derived=196 expected=196
+  [PASS] gamma2 = (q - 1) / 32                          derived=261888 expected=261888
+  [PASS] t1_bits = bitlen(q-1) - d                      derived=10 expected=10
+  [PASS] c_tilde = (2*192)/8 bytes                      derived=48 expected=48
+  [PASS] polyt1 = n*t1_bits/8 (per poly)                derived=320 expected=320
+  [PASS] pk = 32 + k*polyt1                             derived=1952 expected=1952
+  [PASS] z_bits = bitlen(2*gamma1-1)                    derived=20 expected=20
+  [PASS] polyz = n*z_bits/8 (per poly)                  derived=640 expected=640
+  [PASS] sig = c_tilde + l*polyz + (omega+k)            derived=3309 expected=3309
+
+=== ALL CHECKS PASSED: parameters are self-consistent ===

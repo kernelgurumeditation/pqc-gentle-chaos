@@ -18,11 +18,22 @@
 #include <math.h>
 #include <time.h>
 
+/* M_PI is not guaranteed by the C standard (only by POSIX); define it here
+ * so the file compiles cleanly under -std=c11. */
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 /* ========== Parameters ========== */
 #define M 3           /* Vector dimension */
 #define Q 101         /* Modulus */
-#define Y_RANGE 50    /* Masking: y_i in [-Y_RANGE, Y_RANGE] */
-#define SIGMA 40.0    /* Gaussian parameter for rejection sampling */
+#define Y_RANGE 50    /* Masking: y_i in [-Y_RANGE, Y_RANGE] (naive demo only) */
+#define SIGMA 14.0    /* Gaussian parameter for rejection sampling.
+                       * Deliberately SMALL relative to the secret*challenge
+                       * shift s = (7,-4,11) so that rejection sampling actually
+                       * rejects a large fraction of candidates. With a huge
+                       * sigma the accept probability is ~1 and the lesson
+                       * (output independent of the secret) is invisible. */
 
 /* ========== Helper Functions ========== */
 
@@ -39,6 +50,21 @@ int sample_uniform(int range) {
     return (rand() % (2 * range + 1)) - range;
 }
 
+/* Sample a (rounded) Gaussian with standard deviation sigma via Box-Muller.
+ * Real lattice signatures use a discrete Gaussian; this approximation is
+ * good enough to illustrate rejection sampling. Using a Gaussian proposal
+ * (instead of uniform) keeps the rejection math self-consistent: both the
+ * target and the proposal share the same bell-shaped distribution. */
+int sample_gaussian(double sigma) {
+    double u1, u2;
+    do {
+        u1 = (double)rand() / (double)RAND_MAX;
+    } while (u1 < 1e-12);              /* avoid log(0) */
+    u2 = (double)rand() / (double)RAND_MAX;
+    double g = sqrt(-2.0 * log(u1)) * cos(2.0 * M_PI * u2);
+    return (int)lround(g * sigma);
+}
+
 /* Gaussian PDF (unnormalized) */
 double gaussian_pdf(int *v, int len, double sigma) {
     double norm_sq = 0;
@@ -46,6 +72,34 @@ double gaussian_pdf(int *v, int len, double sigma) {
         norm_sq += (double)v[i] * v[i];
     }
     return exp(-norm_sq / (2.0 * sigma * sigma));
+}
+
+/* Rejection-sampling normalization constant M (the "repetition rate").
+ *
+ * To make the output z independent of the secret-dependent shift c*s, we
+ * accept a candidate with probability  D_sigma(z) / (M * D_{c*s,sigma}(z)),
+ * i.e.  exp(-(||z||^2 - ||y||^2) / (2*sigma^2)) / M.
+ *
+ * M must be at least the supremum of that ratio so the acceptance
+ * probability never exceeds 1. Without the M divisor the c=0 case (z = y)
+ * would ALWAYS be accepted, the two challenge distributions could never be
+ * forced to match, and the secret would still leak. M > 1 is exactly what
+ * forces some c=0 candidates to be rejected too. The price is that signing
+ * needs ~M attempts on average (Fiat-Shamir "with aborts").
+ *
+ * For s = (7,-4,11), ||s||^2 = 186, and the worst-case inner product
+ * <y, c*s> is bounded by roughly k*sigma*||s|| (k ~ 2.2 std-devs), giving
+ *   M = exp((2*k*sigma*||s|| + ||s||^2) / (2*sigma^2)).
+ * With sigma = 14 this evaluates to M ~ 13.7, so ~14 attempts/signature. */
+double rejection_M(double sigma, int *s, int len) {
+    double norm_sq = 0;
+    for (int i = 0; i < len; i++) {
+        norm_sq += (double)s[i] * s[i];
+    }
+    const double k = 2.2;  /* tail cut-off in standard deviations */
+    double exponent = (2.0 * k * sigma * sqrt(norm_sq) + norm_sq)
+                      / (2.0 * sigma * sigma);
+    return exp(exponent);
 }
 
 /* ========== Naive Signature (Insecure) ========== */
@@ -175,11 +229,12 @@ typedef struct {
  */
 int rejection_sign(naive_keys_t *keys, rejection_sig_t *sig, int max_attempts) {
     int y[M], z[M];
+    double M_rej = rejection_M(SIGMA, keys->s, M);
 
     for (int attempt = 1; attempt <= max_attempts; attempt++) {
-        /* Sample masking y (approximating Gaussian with uniform here) */
+        /* Sample masking y from a (rounded) Gaussian of width sigma */
         for (int i = 0; i < M; i++) {
-            y[i] = sample_uniform(Y_RANGE);
+            y[i] = sample_gaussian(SIGMA);
         }
 
         /* Challenge (simplified) */
@@ -190,14 +245,15 @@ int rejection_sign(naive_keys_t *keys, rejection_sig_t *sig, int max_attempts) {
             z[i] = y[i] + sig->c * keys->s[i];
         }
 
-        /* Rejection sampling decision */
-        /* Accept with probability exp(-||z||²/2σ²) / exp(-||y||²/2σ²) */
+        /* Rejection sampling decision (Lyubashevsky):
+         * accept with probability  D_sigma(z) / (M * D_{c*s,sigma}(z))
+         *   = exp(-(||z||^2 - ||y||^2)/(2 sigma^2)) / M.
+         * The division by M (> 1) is essential: it forces even c=0
+         * candidates (where z == y, ratio == 1) to be rejected sometimes,
+         * which is what makes the accepted z independent of the secret. */
         double p_z = gaussian_pdf(z, M, SIGMA);
         double p_y = gaussian_pdf(y, M, SIGMA);
-
-        /* Need a normalization constant M to ensure ratio <= 1 */
-        /* For simplicity, we use rejection based on z's norm */
-        double accept_prob = p_z / p_y;
+        double accept_prob = (p_z / p_y) / M_rej;
 
         /* Clamp to [0, 1] and make probabilistic decision */
         if (accept_prob > 1.0) accept_prob = 1.0;
@@ -219,7 +275,7 @@ int rejection_sign(naive_keys_t *keys, rejection_sig_t *sig, int max_attempts) {
 
 /* ========== Rejection Sampling Prevents Leakage ========== */
 
-void rejection_demo(void) {
+int rejection_demo(void) {
     printf("\n=== Rejection Sampling Demo ===\n\n");
 
     naive_keys_t keys;
@@ -227,7 +283,9 @@ void rejection_demo(void) {
 
     printf("Secret key s = (%d, %d, %d)\n",
            keys.s[0], keys.s[1], keys.s[2]);
-    printf("Gaussian parameter σ = %.1f\n\n", SIGMA);
+    printf("Gaussian parameter σ = %.1f\n", SIGMA);
+    printf("Repetition rate M = %.2f (target ~%.0f attempts/signature)\n\n",
+           rejection_M(SIGMA, keys.s, M), rejection_M(SIGMA, keys.s, M));
 
     /* Collect signatures with rejection sampling */
     double sum_c0[M] = {0, 0, 0};
@@ -256,8 +314,11 @@ void rejection_demo(void) {
         }
     }
 
+    double avg_attempts = (double)total_attempts / num_sigs;
     printf("After %d signatures (avg %.2f attempts each):\n",
-           num_sigs, (double)total_attempts / num_sigs);
+           num_sigs, avg_attempts);
+    printf("  Rejection rate: %.1f%% of candidates rejected\n",
+           100.0 * (1.0 - 1.0 / avg_attempts));
     printf("  %d with c=0, %d with c=1\n\n", count_c0, count_c1);
 
     /* Compute averages */
@@ -283,6 +344,9 @@ void rejection_demo(void) {
            keys.s[0], keys.s[1], keys.s[2]);
     printf("\n*** With rejection sampling, attack fails! ***\n");
     printf("(Both averages are near 0 - no difference to exploit)\n");
+
+    /* PASS = rejection sampling still produced signatures to analyze. */
+    return (count_c0 + count_c1) > 0;
 }
 
 /* ========== SIS Problem Demonstration ========== */
@@ -338,7 +402,7 @@ void sis_demo(void) {
 
 /* ========== Fiat-Shamir with Aborts Framework ========== */
 
-void fiat_shamir_aborts_demo(void) {
+int fiat_shamir_aborts_demo(void) {
     printf("\n=== Fiat-Shamir with Aborts Demo ===\n\n");
 
     naive_keys_t keys;
@@ -349,15 +413,16 @@ void fiat_shamir_aborts_demo(void) {
     int y[M], z[M];
     int attempt = 0;
     int accepted = 0;
+    double M_rej = rejection_M(SIGMA, keys.s, M);
 
-    printf("Attempting to sign with rejection sampling:\n");
+    printf("Attempting to sign with rejection sampling (M = %.2f):\n", M_rej);
 
-    while (!accepted && attempt < 20) {
+    while (!accepted && attempt < 200) {
         attempt++;
 
-        /* Step 1: Sample masking */
+        /* Step 1: Sample masking from a Gaussian of width sigma */
         for (int i = 0; i < M; i++) {
-            y[i] = sample_uniform(Y_RANGE);
+            y[i] = sample_gaussian(SIGMA);
         }
 
         /* Step 2: Compute commitment (w = Ay, simplified here) */
@@ -376,51 +441,62 @@ void fiat_shamir_aborts_demo(void) {
             z[i] = y[i] + c * keys.s[i];
         }
 
-        /* Step 5: Rejection check */
+        /* Step 5: Rejection check (normalized by M, so ratio <= 1) */
         double p_z = gaussian_pdf(z, M, SIGMA);
         double p_y = gaussian_pdf(y, M, SIGMA);
-        double ratio = p_z / p_y;
+        double ratio = (p_z / p_y) / M_rej;
         if (ratio > 1.0) ratio = 1.0;
 
         double r = (double)rand() / (double)RAND_MAX;
 
-        printf("  Attempt %d: c=%d, ratio=%.3f, random=%.3f → ",
-               attempt, c, ratio, r);
+        /* Only print the first handful so the trace stays readable */
+        if (attempt <= 12) {
+            printf("  Attempt %d: c=%d, accept_prob=%.3f, random=%.3f → %s\n",
+                   attempt, c, ratio, r, (r < ratio) ? "ACCEPT" : "REJECT (abort and retry)");
+        } else if (attempt == 13) {
+            printf("  ... (further rejected attempts omitted) ...\n");
+        }
 
         if (r < ratio) {
-            printf("ACCEPT\n");
             accepted = 1;
-        } else {
-            printf("REJECT (abort and retry)\n");
         }
     }
 
     if (accepted) {
         printf("\nSignature produced after %d attempt(s)\n", attempt);
         printf("z = (%d, %d, %d)\n", z[0], z[1], z[2]);
+    } else {
+        printf("\nNo signature produced within attempt budget!\n");
     }
+
+    /* PASS = signing-with-aborts terminated with an accepted signature. */
+    return accepted;
 }
 
 /* ========== Main ========== */
 
 int main(void) {
-    srand(time(NULL));
+    /* Fixed default seed => reproducible teaching output; override with PQC_DEMO_SEED. */
+    const char *demo_seed_env = getenv("PQC_DEMO_SEED");
+    srand(demo_seed_env ? (unsigned)strtoul(demo_seed_env, NULL, 10) : 1234567u);
 
     printf("╔══════════════════════════════════════════════════════════════╗\n");
     printf("║  Unit 5.3: Lattice-Based Signatures and Rejection Sampling   ║\n");
     printf("╚══════════════════════════════════════════════════════════════╝\n\n");
 
-    /* Demo 1: Information leakage in naive scheme */
+    int all_pass = 1;
+
+    /* Demo 1: Information leakage in naive scheme (illustrative) */
     leakage_attack_demo();
 
     /* Demo 2: Rejection sampling prevents leakage */
-    rejection_demo();
+    all_pass &= rejection_demo();
 
-    /* Demo 3: SIS problem */
+    /* Demo 3: SIS problem (illustrative brute-force search) */
     sis_demo();
 
     /* Demo 4: Fiat-Shamir with Aborts */
-    fiat_shamir_aborts_demo();
+    all_pass &= fiat_shamir_aborts_demo();
 
     printf("\n");
     printf("═══════════════════════════════════════════════════════════════\n");
@@ -431,5 +507,11 @@ int main(void) {
     printf("  4. ML-DSA uses this framework with Module-LWE/SIS\n");
     printf("═══════════════════════════════════════════════════════════════\n");
 
-    return 0;
+    printf("\n==============================================\n");
+    printf("Overall result: %s\n",
+           all_pass ? "PASS (signing demos produced valid signatures)"
+                    : "FAIL (a signing demo failed to produce signatures)");
+    printf("==============================================\n");
+
+    return all_pass ? EXIT_SUCCESS : EXIT_FAILURE;
 }

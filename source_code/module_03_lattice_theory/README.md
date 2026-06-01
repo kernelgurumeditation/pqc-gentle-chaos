@@ -126,8 +126,10 @@ After compilation, run each program:
 | unit_3_3_module_lwe.c | 6333-6501 | 3.3 | Module-LWE structure |
 | unit_3_3_anticirculant_demo.c | 6711-6838 | 3.3 | Anti-circulant matrices |
 | unit_3_4_kpke.c | 7450-7949 | 3.4 | K-PKE encryption scheme |
+| unit_3_1_is_lattice_point.c | 3.1 | 3.1 | Test whether a vector is a lattice point |
+| lattice_basics.c | 3.1 | 3.1 | Standalone lattice-basics demo |
 
-**Total Programs**: 6
+**Total Programs**: 8
 
 All programs have been successfully extracted, documented, and tested for compilation.
 
@@ -135,4 +137,4 @@ All programs have been successfully extracted, documented, and tested for compil
 
 All programs compile successfully without warnings or errors.
 
-✅ **Status**: All 6 programs compiled successfully
+✅ **Status**: All 8 programs compiled successfully

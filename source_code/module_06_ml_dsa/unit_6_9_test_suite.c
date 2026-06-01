@@ -22,6 +22,7 @@
 #define MLDSA_BETA 196
 #define MLDSA_OMEGA 55
 #define MLDSA_M ((MLDSA_Q - 1) / (2 * MLDSA_GAMMA2))
+#define MLDSA_CTILDE_BYTES 48  /* c_tilde length for ML-DSA-65 (lambda/4 = 192/4) */
 
 /* Type definitions */
 typedef struct { int32_t coeffs[MLDSA_N]; } poly;
@@ -296,12 +297,12 @@ void test_size_calculations(void) {
     TEST_ASSERT(sk_size == expected_sk_size,
                 "secret key size matches spec (4032 bytes)");
 
-    size_t sig_size = 32 +  /* c_tilde */
+    size_t sig_size = MLDSA_CTILDE_BYTES +  /* c_tilde: 48 bytes for ML-DSA-65 */
                       (MLDSA_L * MLDSA_N * 20 + 7) / 8 +  /* z: 20 bits */
                       MLDSA_OMEGA + MLDSA_K;  /* hints */
-    /* Allow small difference due to encoding variations (spec: 3309) */
-    TEST_ASSERT(sig_size >= 3300 && sig_size <= 3400,
-                "signature size approximately correct (~3309 bytes)");
+    size_t expected_sig_size = 3309;
+    TEST_ASSERT(sig_size == expected_sig_size,
+                "signature size matches spec (3309 bytes)");
 
     printf("\n  Calculated sizes:\n");
     printf("    Public key:  %zu bytes (spec: 1952)\n", pk_size);

@@ -29,10 +29,18 @@ int main(void) {
         int16_t barrett = barrett_reduce((int32_t)a);
         int16_t naive = (int16_t)(a % Q);
 
-        if (barrett != naive) {
+        // barrett_reduce returns a representative congruent mod Q, which may be
+        // a centered (possibly negative) value, whereas `naive` is in [0, Q).
+        // Normalize both to the canonical [0, Q) representative before comparing
+        // so we test mathematical correctness (congruence mod Q), not the
+        // particular representative convention.
+        int32_t barrett_norm = ((barrett % Q) + Q) % Q;
+        int32_t naive_norm   = ((naive   % Q) + Q) % Q;
+
+        if (barrett_norm != naive_norm) {
             if (errors < 10) {
-                printf("ERROR: barrett_reduce(%" PRId64 ") = %d, expected %d\n",
-                       a, barrett, naive);
+                printf("ERROR: barrett_reduce(%" PRId64 ") = %d (mod Q: %d), "
+                       "expected %d\n", a, barrett, barrett_norm, naive_norm);
             }
             errors++;
         }

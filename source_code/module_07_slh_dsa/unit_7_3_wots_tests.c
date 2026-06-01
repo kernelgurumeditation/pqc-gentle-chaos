@@ -185,9 +185,10 @@ static int wots_verify(const uint8_t expected_pk[WOTS_LEN * WOTS_N],
 }
 
 /*
- * Test basic WOTS+ sign and verify
+ * Test basic WOTS+ sign and verify.
+ * Returns 1 on success, 0 on failure.
  */
-void test_wots_basic(void)
+int test_wots_basic(void)
 {
     printf("Testing WOTS+ basic sign/verify...\n");
 
@@ -213,12 +214,14 @@ void test_wots_basic(void)
     } else {
         printf("  Basic sign/verify FAILED!\n");
     }
+    return result == 0;
 }
 
 /*
- * Test that wrong message fails verification
+ * Test that wrong message fails verification.
+ * Returns 1 on success, 0 on failure.
  */
-void test_wots_wrong_message(void)
+int test_wots_wrong_message(void)
 {
     printf("Testing WOTS+ wrong message detection...\n");
 
@@ -242,6 +245,7 @@ void test_wots_wrong_message(void)
     } else {
         printf("  Wrong message detection FAILED!\n");
     }
+    return result != 0;
 }
 
 /*
@@ -276,9 +280,10 @@ void test_checksum_security(void)
 }
 
 /*
- * Test base-w conversion
+ * Test base-w conversion.
+ * Returns 1 on success, 0 on failure.
  */
-void test_base_w(void)
+int test_base_w(void)
 {
     printf("Testing base-w conversion...\n");
 
@@ -293,18 +298,21 @@ void test_base_w(void)
     printf("  Output (base-16): {%u, %u, %u, %u}\n",
            output[0], output[1], output[2], output[3]);
 
-    if (output[0] == 0xA && output[1] == 0xB &&
-        output[2] == 0xC && output[3] == 0xD) {
+    int passed = (output[0] == 0xA && output[1] == 0xB &&
+                  output[2] == 0xC && output[3] == 0xD);
+    if (passed) {
         printf("  Base-w conversion PASSED!\n");
     } else {
         printf("  Base-w conversion FAILED!\n");
     }
+    return passed;
 }
 
 /*
- * Test chain composition
+ * Test chain composition.
+ * Returns 1 on success, 0 on failure.
  */
-void test_chain_composition(void)
+int test_chain_composition(void)
 {
     printf("Testing chain composition...\n");
 
@@ -320,12 +328,14 @@ void test_chain_composition(void)
     chain(out2, input, 0, 3, pub_seed);
     chain(out3, out2, 3, 2, pub_seed);
 
-    if (memcmp(out1, out3, WOTS_N) == 0) {
+    int passed = (memcmp(out1, out3, WOTS_N) == 0);
+    if (passed) {
         printf("  Chain composition PASSED!\n");
         printf("    chain(x, 0, 5) == chain(chain(x, 0, 3), 3, 2)\n");
     } else {
         printf("  Chain composition FAILED!\n");
     }
+    return passed;
 }
 
 /*
@@ -354,13 +364,22 @@ int main(void)
 {
     printf("=== WOTS+ Demonstration ===\n\n");
 
-    test_base_w();
-    test_chain_composition();
-    test_wots_basic();
-    test_wots_wrong_message();
+    int ok_basew  = test_base_w();
+    int ok_chain  = test_chain_composition();
+    int ok_basic  = test_wots_basic();
+    int ok_wrong  = test_wots_wrong_message();
     test_checksum_security();
     show_sizes();
 
     printf("\n=== Demo complete! ===\n");
-    return 0;
+
+    /* Explicit PASS/FAIL verdict so the demo is usable as an automated test. */
+    int all_ok = ok_basew && ok_chain && ok_basic && ok_wrong;
+    printf("\n=== Self-test verdict ===\n");
+    printf("  base-w conversion        : %s\n", ok_basew ? "PASS" : "FAIL");
+    printf("  chain composition        : %s\n", ok_chain ? "PASS" : "FAIL");
+    printf("  basic sign/verify        : %s\n", ok_basic ? "PASS" : "FAIL");
+    printf("  wrong message rejected   : %s\n", ok_wrong ? "PASS" : "FAIL");
+    printf("Result: %s\n", all_ok ? "PASS" : "FAIL");
+    return all_ok ? 0 : 1;
 }

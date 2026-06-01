@@ -45,13 +45,22 @@ int main(void) {
         {17, 3329} // 17 in Z_3329 (ML-KEM modulus)
     };
 
+    // Expected outcome per case: 1 = inverse exists, 0 = no inverse.
+    const int expect_has_inv[5] = {1, 0, 1, 0, 1};
+
     printf("Testing multiplicative inverses in Z_n:\n\n");
 
+    int failures = 0;
     for (int i = 0; i < 5; i++) {
         int32_t a = test_cases[i][0];
         int32_t n = test_cases[i][1];
         int has_inv;
         int32_t inv = find_inverse(a, n, &has_inv);
+
+        // Verify against expectation; when an inverse exists it must satisfy
+        // a * inv ≡ 1 (mod n).
+        if (has_inv != expect_has_inv[i]) failures++;
+        else if (has_inv && ((int64_t)a * inv) % n != 1) failures++;
 
         printf("%d in Z_%d: ", a, n);
         if (has_inv) {
@@ -63,5 +72,12 @@ int main(void) {
         }
     }
 
-    return 0;
+    if (failures == 0) {
+        printf("\n[PASS] all inverse existence/correctness checks hold\n");
+    } else {
+        printf("\n[FAIL] %d inverse check(s) failed\n", failures);
+    }
+
+    /* Nonzero exit on failure so the test harness can detect it. */
+    return failures == 0 ? 0 : 1;
 }

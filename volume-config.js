@@ -63,6 +63,7 @@ const SKIP_H2_ALWAYS = new Set([
 const VOL1_INCLUDE_H2 = new Set([
   'The Post-Quantum Transition at a Glance',
   'How to Use This Document',
+  'Quick Start Gateway — Pick Your Path',
   'Glossary of Terms',
   'Module 1: Prerequisites and Environment Setup',
   'Module 1 Summary: Prerequisites and Environment Setup',
@@ -91,6 +92,7 @@ const VOL1_INCLUDE_H2 = new Set([
 const VOL2_INCLUDE_H2 = new Set([
   'The Post-Quantum Transition at a Glance',
   'How to Use This Document',
+  'Quick Start Gateway — Pick Your Path',
   'Glossary of Terms',
   'Module 8: Hybrid Cryptography',
   'Module 8 Summary: Hybrid Cryptography',

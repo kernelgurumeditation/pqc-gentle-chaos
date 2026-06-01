@@ -1,0 +1,54 @@
+=== WOTS+ Key Reuse Attack Demo ===
+
+Setup: WOTS+ key with 6 chains, each of length 16
+
+Message 1 chain positions: {3, 7, 2, 5, 8, 4}
+Message 2 chain positions: {7, 3, 9, 1, 6, 10}
+
+Generating signature 1 (DANGEROUS - first use of key)...
+Generating signature 2 (DANGEROUS - key reuse!)...
+
+=== ATTACK: Forging a Third Signature ===
+
+Target message positions: {5, 5, 8, 3, 7, 7}
+
+Chain-by-chain forgery analysis:
+  Chain 0: need position 5, have positions 3 and 7
+    -> Forge from sig1: chain forward 2 steps
+  Chain 1: need position 5, have positions 7 and 3
+    -> Forge from sig2: chain forward 2 steps
+  Chain 2: need position 8, have positions 2 and 9
+    -> Forge from sig1: chain forward 6 steps
+  Chain 3: need position 3, have positions 5 and 1
+    -> Forge from sig2: chain forward 2 steps
+  Chain 4: need position 7, have positions 8 and 6
+    -> Forge from sig2: chain forward 1 steps
+  Chain 5: need position 7, have positions 4 and 10
+    -> Forge from sig1: chain forward 3 steps
+
+=== Attack Result ===
+FORGERY SUCCESSFUL!
+Attacker created valid signature for new message.
+
+=== Security Analysis ===
+
+Key insight from the attack:
+  - Signature reveals chain value at position m_i
+  - Attacker can hash FORWARD (increase position)
+  - Attacker CANNOT hash backward (would need preimage)
+
+With ONE signature:
+  - For each chain, attacker knows position m_i
+  - Can forge any message where m'_i >= m_i for all i
+
+With TWO signatures on different messages:
+  - For each chain, attacker knows min(m1_i, m2_i)
+  - Forgery space grows significantly
+
+With multiple signatures:
+  - Eventually know position 0 for each chain
+  - Complete key recovery: can forge ANY message!
+
+Conclusion: WOTS+ is ONE-TIME ONLY!
+This is why SLH-DSA uses a hypertree of WOTS+ keys,
+each used exactly once to sign the layer below.

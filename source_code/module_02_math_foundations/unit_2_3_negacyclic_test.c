@@ -32,7 +32,9 @@ void poly_mul_schoolbook(poly *r, const poly *a, const poly *b) {
 }
 
 int main(void) {
-    srand(time(NULL));
+    /* Fixed default seed => reproducible teaching output; override with PQC_DEMO_SEED. */
+    const char *demo_seed_env = getenv("PQC_DEMO_SEED");
+    srand(demo_seed_env ? (unsigned)strtoul(demo_seed_env, NULL, 10) : 1234567u);
     poly a = {{0}};
 
     // Random polynomial
@@ -78,5 +80,6 @@ int main(void) {
         printf("ERROR: Negacyclic property failed!\n");
     }
 
-    return 0;
+    /* Nonzero exit on failure so the test harness can detect it. */
+    return match ? 0 : 1;
 }

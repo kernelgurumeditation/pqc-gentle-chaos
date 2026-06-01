@@ -105,7 +105,10 @@ static hc_error_t hc_sign(const hc_key_t *key, const uint8_t *msg,
     size_t needed = (key->alg == HC_ALG_HYBRID_ED25519_MLDSA65) ? 3373 : 64;
     if (*sig_len < needed) return HC_ERROR_BUFFER_SIZE;
     for (size_t i = 0; i < needed; i++) {
-        sig[i] = key->data[i % 64] ^ msg[i % msg_len] ^ (i & 0xFF);
+        /* Guard against division by zero: an empty message contributes no
+         * key-stream byte, so we skip the msg XOR term when msg_len == 0. */
+        uint8_t msg_byte = (msg_len > 0) ? msg[i % msg_len] : 0;
+        sig[i] = key->data[i % 64] ^ msg_byte ^ (i & 0xFF);
     }
     *sig_len = needed;
     return HC_SUCCESS;

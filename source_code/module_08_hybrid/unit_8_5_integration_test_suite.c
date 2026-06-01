@@ -139,8 +139,11 @@ static hc_error_t hc_sign(const hc_key_t *key, const uint8_t *msg,
     if (*sig_len < needed) return HC_ERROR_BUFFER_SIZE;
 
     for (size_t i = 0; i < needed; i++) {
+        /* Guard against division by zero: an empty message contributes no
+         * key-stream byte, so we skip the msg XOR term when msg_len == 0. */
+        uint8_t msg_byte = (msg_len > 0) ? msg[i % msg_len] : 0;
         sig[i] = key->private_key[i % key->sk_len] ^
-                 msg[i % msg_len] ^ (i & 0xFF);
+                 msg_byte ^ (i & 0xFF);
     }
     *sig_len = needed;
     return HC_SUCCESS;

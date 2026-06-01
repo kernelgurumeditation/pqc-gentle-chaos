@@ -1,0 +1,7 @@
+Matrix-vector multiplication test:
+A = I (identity), v = [1, 2, 3] (as constant polynomials)
+Result r = A·v:
+  r[0].coeffs[0] = 1 (expected 1)
+  r[1].coeffs[0] = 2 (expected 2)
+  r[2].coeffs[0] = 3 (expected 3)
+[PASS] I·v == v (matrix-vector product correct)

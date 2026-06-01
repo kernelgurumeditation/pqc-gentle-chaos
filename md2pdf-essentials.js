@@ -3,7 +3,7 @@
  * md2pdf-essentials.js
  *
  * Generate the "Essentials Edition" filtered Markdown from the full
- * PQC Developer's Handbook. Target: ~300 pages.
+ * PQC Developer's Handbook. Target: ~240 pages.
  *
  * Usage:
  *   node md2pdf-essentials.js <input.md> <output.md>
@@ -152,6 +152,7 @@ let currentH3 = null;            // Current H3 heading text
 let includeCurrentH3 = false;    // Whether current H3 should be emitted
 let inInlineSkip = false;        // True while inside an embedded sample-doc section
                                   // (skip everything until next H3 or qualifying H2)
+let inFence = false;             // Inside a ``` / ~~~ fenced code block
 
 function matchesH3Filter(h3text, filterSet) {
     if (!filterSet) return true;
@@ -164,8 +165,22 @@ function matchesH3Filter(h3text, filterSet) {
 for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // H2 heading
-    if (line.startsWith('## ') && !line.startsWith('### ')) {
+    // Track fenced code blocks FIRST. Inside a fence, "## "/"### " lines are
+    // CODE (e.g. a sample document shown inside ```markdown), NOT real
+    // headings — running heading/skip detection on them corrupts the block.
+    // Emit the fence marker using the same condition as ordinary content.
+    if (/^\s*(```|~~~)/.test(line)) {
+        inFence = !inFence;
+        if (inFrontMatter) { output.push(line); continue; }
+        if (inInlineSkip) continue;
+        if (includeCurrentH2 && (h3FilterSet === null || currentH3 === null || includeCurrentH3)) {
+            output.push(line);
+        }
+        continue;
+    }
+
+    // H2 heading (only OUTSIDE code fences)
+    if (!inFence && line.startsWith('## ') && !line.startsWith('### ')) {
         inFrontMatter = false;
         const h2Text = line.slice(3).trim();
 
@@ -210,8 +225,8 @@ for (let i = 0; i < lines.length; i++) {
         continue;
     }
 
-    // H3 heading inside a kept H2
-    if (line.startsWith('### ') && includeCurrentH2) {
+    // H3 heading inside a kept H2 (only OUTSIDE code fences)
+    if (!inFence && line.startsWith('### ') && includeCurrentH2) {
         // Reaching an H3 ends any embedded inline-skip.
         inInlineSkip = false;
 
@@ -269,7 +284,12 @@ function generateTOC(filteredLines) {
     const tocLines = ['## Table of Contents', ''];
     const skipBefore = 'The Post-Quantum Transition at a Glance';
     let started = false;
+    let inFence = false;
     for (const line of filteredLines) {
+        // Skip headings inside fenced code blocks (e.g. sample-document
+        // "## ..." lines) so the TOC never links to a non-existent anchor.
+        if (/^\s*(```|~~~)/.test(line)) { inFence = !inFence; continue; }
+        if (inFence) continue;
         if (line.startsWith('## ') && !line.startsWith('### ')) {
             const text = line.slice(3).trim();
             if (text === skipBefore) started = true;

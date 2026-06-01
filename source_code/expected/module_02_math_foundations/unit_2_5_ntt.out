@@ -1,0 +1,6 @@
+NTT Test:
+Original a[0..4]: 0 1 2 3 4
+After NTT a[0..4]: -335 -3248 2449 -510 -346
+After INTT a[0..4]: 0 1 2 3 4
+Round-trip errors: 0
+[PASS] NTT followed by inverse NTT recovers the input

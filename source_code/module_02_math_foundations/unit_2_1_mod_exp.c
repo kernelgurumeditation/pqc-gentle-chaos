@@ -51,13 +51,22 @@ int main(void) {
     // Check if 17 is a primitive 256th root of unity mod 3329
     // Need: 17^128 ≡ -1 (mod 3329) and 17^256 ≡ 1 (mod 3329)
     // Note: 3328 = 2^8 * 13, so the max power-of-2 order is 256
-    uint64_t result = mod_exp(17, 128, q);
-    printf("\n17^128 mod 3329 = %lu", result);
+    uint64_t r128 = mod_exp(17, 128, q);
+    printf("\n17^128 mod 3329 = %lu", r128);
     printf(" (should be %lu = -1 mod 3329)\n", q - 1);
 
     // Verify: 17^256 ≡ 1 (mod 3329)
-    result = mod_exp(17, 256, q);
-    printf("17^256 mod 3329 = %lu (should be 1)\n", result);
+    uint64_t r256 = mod_exp(17, 256, q);
+    printf("17^256 mod 3329 = %lu (should be 1)\n", r256);
 
-    return 0;
+    // Known-answer checks: 3^20 mod 97 = 91, 17^128 ≡ -1 (= q-1), 17^256 ≡ 1.
+    int ok = (mod_exp(3, 20, 97) == 91) && (r128 == q - 1) && (r256 == 1);
+    if (ok) {
+        printf("\n[PASS] modular exponentiation known-answer checks hold\n");
+    } else {
+        printf("\n[FAIL] modular exponentiation known-answer check failed\n");
+    }
+
+    /* Nonzero exit on failure so the test harness can detect it. */
+    return ok ? 0 : 1;
 }

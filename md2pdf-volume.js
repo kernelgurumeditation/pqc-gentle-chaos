@@ -59,12 +59,26 @@ let inFrontMatter = true;       // Before first H2
 let currentH2 = null;            // Current H2 heading text
 let includeCurrentH2 = false;    // Whether to emit lines from this H2
 let inInlineSkip = false;        // Inside an embedded sample-doc section
+let inFence = false;             // Inside a ``` / ~~~ fenced code block
 
 for (let i = 0; i < lines.length; i++) {
   const line = lines[i];
 
-  // H2 heading detection
-  if (line.startsWith('## ') && !line.startsWith('### ')) {
+  // Track fenced code blocks FIRST. Inside a fence, lines beginning with
+  // "## "/"### " are CODE (e.g. a sample document shown inside ```markdown),
+  // NOT real headings — running heading/skip detection on them corrupts the
+  // block and leaves an unbalanced fence in the filtered output (which then
+  // swallows later real headings). Emit the fence marker per current state.
+  if (/^\s*(```|~~~)/.test(line)) {
+    inFence = !inFence;
+    if (inFrontMatter) { output.push(line); continue; }
+    if (inInlineSkip) continue;
+    if (includeCurrentH2) output.push(line);
+    continue;
+  }
+
+  // H2 heading detection (only OUTSIDE code fences)
+  if (!inFence && line.startsWith('## ') && !line.startsWith('### ')) {
     inFrontMatter = false;
     const h2Text = line.slice(3).trim();
 
@@ -168,61 +182,65 @@ result = result.replace(
   }
 );
 
-// ---- Pattern 2: prose "see Unit X.Y" / "in Unit X.Y" / "from Unit X.Y" ---
-// Avoid matching inside markdown link text (already handled in pattern 1).
-// We apply a forward-look: skip if previous char was `[`.
-result = result.replace(
-  /(?<![\[])(\b(?:see|See|in|from|of|per|via|using|consult|cf\.)\s+)Unit\s+(\d+(?:\.\d+)*)/g,
-  (m, prefix, num) => {
-    const mod = moduleOfUnit(num);
-    if (!isCrossVolume(mod)) return m;
-    const tgtVol = targetVolumeNum(mod);
-    rewriteStats.proseUnitRefs++;
-    return `${prefix}Volume ${tgtVol}, Unit ${num}`;
-  }
-);
-
-// ---- Pattern 3: prose "see Module N" / "in Module N" --------------------
-result = result.replace(
-  /(?<![\[])(\b(?:see|See|in|from|of|per|via|using|consult)\s+)Module\s+(\d+)/g,
-  (m, prefix, num) => {
-    const mod = parseInt(num, 10);
-    if (!isCrossVolume(mod)) return m;
-    const tgtVol = targetVolumeNum(mod);
-    rewriteStats.proseModuleRefs++;
-    return `${prefix}Volume ${tgtVol}, Module ${num}`;
-  }
-);
-
-// ---- Pattern 4: parenthetical "(see Module N)" / "(see Unit X.Y)" -------
-result = result.replace(
-  /\(see (Unit|Module) (\d+(?:\.\d+)*)\)/g,
-  (m, kind, num) => {
-    const mod = kind === 'Module' ? parseInt(num, 10) : moduleOfUnit(num);
-    if (!isCrossVolume(mod)) return m;
-    const tgtVol = targetVolumeNum(mod);
-    if (kind === 'Unit') rewriteStats.proseUnitRefs++;
-    else rewriteStats.proseModuleRefs++;
-    return `(see Volume ${tgtVol}, ${kind} ${num})`;
-  }
-);
-
-// ---- Pattern 5: bare "Module N" anywhere (broadest catch-all) ------------
-// Code blocks are skipped to preserve verbatim ASCII tables / pseudocode.
-// We do a line-by-line pass tracking ``` fence state.
+// ---- Patterns 2–5: prose cross-references (fence-aware) -----------------
+// Patterns 2–4 (prose "see Unit/Module N") and Pattern 5 (bare "Module N"
+// catch-all) all rewrite PROSE only and must NOT touch fenced code — otherwise
+// comments like `// see Module 4` inside a C listing get mangled. We run them
+// in a single line-by-line pass that tracks ``` / ~~~ (incl. indented) fences.
 {
   const linesArr = result.split('\n');
   let inFence = false;
   for (let i = 0; i < linesArr.length; i++) {
-    if (linesArr[i].startsWith('```')) {
+    // Toggle on a fence marker (```... or ~~~..., optionally indented).
+    if (/^\s*(```|~~~)/.test(linesArr[i])) {
       inFence = !inFence;
       continue;
     }
     if (inFence) continue;
-    // Skip H2 headings ("## Module N: ...") — these are real headings that
-    // belong to the volume; my filter already excluded cross-vol H2s.
+
+    // Pattern 2: prose "see/in/from Unit X.Y" (skip markdown link text via
+    // the negative lookbehind on `[`).
+    linesArr[i] = linesArr[i].replace(
+      /(?<![\[])(\b(?:see|See|in|from|of|per|via|using|consult|cf\.)\s+)Unit\s+(\d+(?:\.\d+)*)/g,
+      (m, prefix, num) => {
+        const mod = moduleOfUnit(num);
+        if (!isCrossVolume(mod)) return m;
+        const tgtVol = targetVolumeNum(mod);
+        rewriteStats.proseUnitRefs++;
+        return `${prefix}Volume ${tgtVol}, Unit ${num}`;
+      }
+    );
+
+    // Pattern 3: prose "see/in/from Module N"
+    linesArr[i] = linesArr[i].replace(
+      /(?<![\[])(\b(?:see|See|in|from|of|per|via|using|consult)\s+)Module\s+(\d+)/g,
+      (m, prefix, num) => {
+        const mod = parseInt(num, 10);
+        if (!isCrossVolume(mod)) return m;
+        const tgtVol = targetVolumeNum(mod);
+        rewriteStats.proseModuleRefs++;
+        return `${prefix}Volume ${tgtVol}, Module ${num}`;
+      }
+    );
+
+    // Pattern 4: parenthetical "(see Module N)" / "(see Unit X.Y)"
+    linesArr[i] = linesArr[i].replace(
+      /\(see (Unit|Module) (\d+(?:\.\d+)*)\)/g,
+      (m, kind, num) => {
+        const mod = kind === 'Module' ? parseInt(num, 10) : moduleOfUnit(num);
+        if (!isCrossVolume(mod)) return m;
+        const tgtVol = targetVolumeNum(mod);
+        if (kind === 'Unit') rewriteStats.proseUnitRefs++;
+        else rewriteStats.proseModuleRefs++;
+        return `(see Volume ${tgtVol}, ${kind} ${num})`;
+      }
+    );
+
+    // Skip real module H2/H3 headings before the broad Pattern 5 catch-all —
+    // these headings belong to the volume; cross-vol H2s were already filtered.
     if (linesArr[i].startsWith('## Module ') || linesArr[i].startsWith('### Module ')) continue;
 
+    // Pattern 5: bare "Module N" anywhere (broadest catch-all)
     linesArr[i] = linesArr[i].replace(
       /\bModule (\d+)\b(?![,.] Volume)/g,
       (m, num) => {
@@ -270,7 +288,12 @@ function generateTOC(markdown) {
   const tocLines = ['## Table of Contents', ''];
   const skipBefore = 'The Post-Quantum Transition at a Glance';
   let started = false;
+  let inFence = false;
   for (const line of markdown.split('\n')) {
+    // Skip headings inside fenced code blocks (e.g. sample-document "## ..."
+    // lines), otherwise the TOC links to anchors that have no heading element.
+    if (/^\s*(```|~~~)/.test(line)) { inFence = !inFence; continue; }
+    if (inFence) continue;
     if (line.startsWith('## ') && !line.startsWith('### ')) {
       const text = line.slice(3).trim();
       if (text === skipBefore) started = true;

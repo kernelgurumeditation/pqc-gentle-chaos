@@ -1,0 +1,37 @@
+SSH KEX negotiation demo (OpenSSH 10.0+ behavior)
+=================================================
+
+Client preference (first few):
+  1. mlkem768x25519-sha256
+  2. sntrup761x25519-sha512@openssh.com
+  3. curve25519-sha256
+  ...
+
+Server accepts:
+  1. mlkem768x25519-sha256
+  2. sntrup761x25519-sha512@openssh.com
+  3. curve25519-sha256
+
+Negotiated: mlkem768x25519-sha256
+Hybrid PQ?  YES
+
+Toy hybrid KEX round-trip (mlkem768x25519-sha256)
+  *** PEDAGOGICAL TOY - NOT REAL CRYPTO ***
+
+[Client] sends X25519_pub=418520942, MLKEM_pk=564337984
+[Server] sends X25519_pub=150713637, KEM_ct=1199797124
+
+  server pq_ss        bc7f247f85409822237e9d7a34b46734ba854e0513650ce655cb788c6c53c42d
+  server K            f6afadc0596f24ef722f02748b9348842aa94f71253b522403c5676f5390fff2
+  client pq_ss        bc7f247f85409822237e9d7a34b46734ba854e0513650ce655cb788c6c53c42d
+  client K            f6afadc0596f24ef722f02748b9348842aa94f71253b522403c5676f5390fff2
+
+  classical (X25519) shares agree : yes
+  PQ (ML-KEM) secrets agree       : yes
+  hybrid session key K agrees     : yes
+
+Note: OpenSSH 10.2+ emits a warning banner to the user when the
+negotiated KEX is not hybrid-PQ. By 2028, classical-only KEX is
+expected to be disabled in the default SSH server configuration.
+
+RESULT: PASS - client and server derived the same KEX secret.

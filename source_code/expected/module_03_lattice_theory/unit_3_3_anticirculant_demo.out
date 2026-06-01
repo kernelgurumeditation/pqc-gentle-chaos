@@ -1,0 +1,20 @@
+=== Anti-Circulant Matrix Demo ===
+
+a(X): [5, 3, 7, 2]
+s(X): [1, 4, 2, 6]
+
+Anti-circulant matrix M from a:
+  [  5,  15,  10,  14]
+  [  3,   5,  15,  10]
+  [  7,   3,   5,  15]
+  [  2,   7,   3,   5]
+
+Result via M * s:
+M*s: [16, 11, 0, 15]
+
+Result via a(X)*s(X) mod (X^4+1):
+a*s: [16, 11, 0, 15]
+
+Results match: YES ✓
+
+=== RESULT: PASS ===

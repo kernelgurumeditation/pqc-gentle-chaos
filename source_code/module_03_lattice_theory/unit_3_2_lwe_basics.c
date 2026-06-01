@@ -121,7 +121,9 @@ void print_vector(const char *name, const int32_t *v, int len) {
 }
 
 int main(void) {
-    srand(time(NULL));
+    /* Fixed default seed => reproducible teaching output; override with PQC_DEMO_SEED. */
+    const char *demo_seed_env = getenv("PQC_DEMO_SEED");
+    srand(demo_seed_env ? (unsigned)strtoul(demo_seed_env, NULL, 10) : 1234567u);
 
     printf("=== LWE Encryption Demo ===\n");
     printf("Parameters: n=%d, q=%d, m=%d, error_bound=%d\n\n", N, Q, M, ERROR_BOUND);
@@ -170,6 +172,17 @@ int main(void) {
     int decrypted = lwe_decrypt(u, v, &sk);
     printf("Original bit: %d, Decrypted: %d %s\n",
            bit, decrypted, bit == decrypted ? "✓" : "✗");
+
+    /* Explicit success/failure verdict.
+     * For these tiny demo parameters (q=97, error_bound=2) decryption should
+     * never fail, so any error - or a wrong detailed example - is a real failure. */
+    int ok = (errors == 0) && (decrypted == bit);
+    printf("\n=== RESULT: %s ===\n", ok ? "PASS" : "FAIL");
+    if (!ok) {
+        printf("Decryption errors detected (errors=%d, detailed bit %s).\n",
+               errors, (decrypted == bit) ? "ok" : "wrong");
+        return 1;
+    }
 
     return 0;
 }

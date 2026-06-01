@@ -1,0 +1,10 @@
+Verifying twiddle factors ζ^brv(i) mod 3329:
+ζ = 17
+
+i=1, brv(i)= 64, raw ζ^brv(i) = 1729, Montgomery = 2571 (expected in table: 2571) [PASS]
+i=2, brv(i)= 32, raw ζ^brv(i) = 2580, Montgomery = 2970 (expected in table: 2970) [PASS]
+i=3, brv(i)= 96, raw ζ^brv(i) = 3289, Montgomery = 1812 (expected in table: 1812) [PASS]
+i=4, brv(i)= 16, raw ζ^brv(i) = 2642, Montgomery = 1493 (expected in table: 1493) [PASS]
+i=5, brv(i)= 80, raw ζ^brv(i) =  630, Montgomery = 1422 (expected in table: 1422) [PASS]
+
+VERDICT: ALL PASS

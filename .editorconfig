@@ -1,0 +1,39 @@
+# EditorConfig — https://editorconfig.org
+# Consistent whitespace across the handbook source, C reference code, and tooling.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# C / C++ reference programs and headers
+[*.{c,h,cpp,hpp}]
+indent_style = space
+indent_size = 4
+
+# JavaScript build tooling (md2pdf*.js, volume-config.js)
+[*.js]
+indent_style = space
+indent_size = 2
+
+# Shell scripts
+[*.sh]
+indent_style = space
+indent_size = 4
+
+# Makefiles REQUIRE real tabs for recipes — do not convert.
+[{Makefile,*.mk}]
+indent_style = tab
+
+# Markdown: keep trailing whitespace (two-space line breaks are meaningful)
+[*.md]
+trim_trailing_whitespace = false
+indent_style = space
+indent_size = 2
+
+# YAML (CI, CITATION.cff)
+[*.{yml,yaml,cff}]
+indent_style = space
+indent_size = 2

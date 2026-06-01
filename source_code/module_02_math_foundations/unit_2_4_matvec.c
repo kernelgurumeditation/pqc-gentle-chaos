@@ -79,10 +79,16 @@ int main(void) {
     printf("Matrix-vector multiplication test:\n");
     printf("A = I (identity), v = [1, 2, 3] (as constant polynomials)\n");
     printf("Result r = A·v:\n");
+    int ok = 1;
     for (int i = 0; i < K; i++) {
         printf("  r[%d].coeffs[0] = %d (expected %d)\n",
                i, r.vec[i].coeffs[0], i + 1);
+        if (r.vec[i].coeffs[0] != i + 1) ok = 0;
     }
 
-    return 0;
+    printf(ok ? "[PASS] I·v == v (matrix-vector product correct)\n"
+              : "[FAIL] matrix-vector product mismatch\n");
+
+    /* Nonzero exit on failure so the test harness can detect it. */
+    return ok ? 0 : 1;
 }

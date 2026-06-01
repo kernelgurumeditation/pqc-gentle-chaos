@@ -1,0 +1,3 @@
+L∞ norm of v: 10
+Expected: 10 (largest absolute centered coefficient)
+[PASS] L-inf norm matches expected

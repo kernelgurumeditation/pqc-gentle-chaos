@@ -1,0 +1,18 @@
+=== LWE Encryption Demo ===
+Parameters: n=4, q=97, m=8, error_bound=2
+
+--- Key Generation ---
+Secret key s: (44, 27, 0, 71)
+Public key: 8 LWE samples
+
+--- Encryption Test ---
+Tested 100 encryptions: 0 errors (0.00% failure rate)
+
+--- Detailed Example ---
+Ciphertext u: (5, 82, 77, 51)
+Ciphertext v: 92
+Decryption value w = v - <u,s> = 51
+Q/2 = 48
+Original bit: 1, Decrypted: 1 ✓
+
+=== RESULT: PASS ===

@@ -1,0 +1,40 @@
+╔════════════════════════════════════════════════════════════╗
+║  Unit 4.4: ML-KEM-768-style End-to-End KEM (K-PKE + FO)     ║
+╚════════════════════════════════════════════════════════════╝
+
+Parameters: N=256, K=3, Q=3329, eta1=2, eta2=2
+
+=== KeyGen ===
+  ek H(ek): b258e5e951a02d8b2106f8b03aa48f84...
+  z (reject): ca5ea64f306cdc15f9d7fb6f4c2f578a...
+  t[0][0..3] = 2927, 200, 1799, 1678
+
+=== Encaps (party A) ===
+  random m: e69bda8c6e6d1c72c718e9fe8974daf3...
+  ct u[0][0..3] = 1421, 2617, 57, 1611
+  ss_A: 2b286ec5b76c070c00c88b7434a441f3...
+
+=== Decaps (party B) ===
+  ss_B: 2b286ec5b76c070c00c88b7434a441f3...
+
+=== Tamper check (implicit rejection) ===
+  ss(tampered): 42a0f8022e4ffba8dac798719c622864...
+  tampered ct -> different secret (rejected, as expected)
+
+=== Size Summary (uncompressed, educational) ===
+  ek (encapsulation key):  1184 bytes
+  dk (decapsulation key):  2400 bytes
+  ct (ciphertext):         1536 bytes
+  ss (shared secret):        32 bytes
+  (Real ML-KEM-768 compresses to ek=1184, dk=2400, ct=1088, ss=32.)
+
+PASS: ss_A == ss_B (KEM round-trip correct)
+
+════════════════════════════════════════════════════════════
+End-to-End Flow:
+  KeyGen : (ek, dk) from seeds d, z;  ek = K-PKE public key
+  Encaps : m random; (K_bar,coins)=G(m||H(ek)); ct=Enc(ek,m;coins)
+           ss_A = J(K_bar || H(ct))
+  Decaps : m'=Dec(dk,ct); re-derive, re-encrypt, compare ct
+           match -> ss_B=J(K_bar||H(ct));  else -> J(z||H(ct))
+════════════════════════════════════════════════════════════

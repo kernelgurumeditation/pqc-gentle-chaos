@@ -36,8 +36,14 @@ int main(void) {
     p.coeffs[2] = 1664;     // |1664| = 1664 (just under Q/2)
     p.coeffs[3] = 1665;     // |1665 - 3329| = |-1664| = 1664
 
-    printf("Infinity norm: %d\n", poly_infnorm(&p));
+    int16_t norm = poly_infnorm(&p);
+    printf("Infinity norm: %d\n", norm);
     printf("Expected: 1664\n");
 
-    return 0;
+    int ok = (norm == 1664);
+    printf(ok ? "[PASS] infinity norm matches expected\n"
+              : "[FAIL] infinity norm mismatch\n");
+
+    /* Nonzero exit on failure so the test harness can detect it. */
+    return ok ? 0 : 1;
 }

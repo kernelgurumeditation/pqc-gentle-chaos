@@ -66,6 +66,17 @@ pdf-volumes: pdf-vol1 pdf-vol2
 .PHONY: pdf-everything
 pdf-everything: pdf pdf-essentials pdf-volumes
 
+# Web edition: single searchable, navigable HTML page (zero new deps — reuses
+# the already-installed `marked`). Output is a tracked deliverable.
+WEB_OUTPUT = pqc-developers-handbook-web.html
+.PHONY: web
+web: $(WEB_OUTPUT)
+
+$(WEB_OUTPUT): $(MD_SOURCE) md2web.js
+	@echo "Building web edition..."
+	@node md2web.js $(MD_SOURCE) $(WEB_OUTPUT)
+	@echo "Done: $(WEB_OUTPUT)"
+
 # Verify build prerequisites
 .PHONY: check-deps
 check-deps:
@@ -171,6 +182,7 @@ help:
 	@echo "  make pdf-vol2         - Build Volume 2 (Production — Modules 8-11)"
 	@echo "  make pdf-volumes      - Build both volumes"
 	@echo "  make pdf-everything   - Build full + essentials + both volumes"
+	@echo "  make web              - Build searchable single-page web edition (HTML)"
 	@echo "  make check-deps       - Verify build prerequisites"
 	@echo "  make lint-currency    - Flag stale-by-design tokens (dates, versions, %)"
 	@echo "  make check-links      - Verify external URLs are reachable"

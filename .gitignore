@@ -1,5 +1,7 @@
 # Build intermediates (PDFs themselves are tracked)
 *.html
+# ...except the web edition, which is a tracked deliverable like the PDFs
+!pqc-developers-handbook-web.html
 pqc-developers-handbook-essentials.md
 pqc-developers-handbook-vol1.md
 pqc-developers-handbook-vol2.md
@@ -9,7 +11,6 @@ pqc-developers-handbook-vol2.md
 
 # Node
 node_modules/
-package-lock.json
 
 # Python
 __pycache__/
@@ -37,3 +38,7 @@ dist/
 
 # Maintenance script caches
 .link-check-cache.txt
+
+# Audit/scratch debris (must never be committed)
+.audit
+.audit*

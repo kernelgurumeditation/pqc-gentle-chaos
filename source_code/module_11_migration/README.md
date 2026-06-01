@@ -146,6 +146,6 @@ These programs demonstrate:
 ## Source
 
 All programs extracted from:
-- **File:** /home/nuno/next-gig/pqc-developers-handbook.md
+- **File:** pqc-developers-handbook.md
 - **Module:** 11 - Migrating Legacy Codebases
 - **Line Range:** 51564-53507

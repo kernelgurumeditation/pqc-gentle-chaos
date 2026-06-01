@@ -1,0 +1,93 @@
+=== SLH-DSA Integration Demonstration ===
+
+=== SLH-DSA Structure ===
+
+SLH-DSA combines three main components:
+
+1. FORS (Forest of Random Subsets)
+   - Few-time signature scheme
+   - Signs the message digest directly
+   - Reveals k secret values from k trees
+
+2. XMSS (eXtended Merkle Signature Scheme)
+   - One tree = many one-time signatures
+   - Uses WOTS+ as the one-time signature
+   - Merkle tree aggregates WOTS+ public keys
+
+3. Hypertree
+   - Stack of XMSS trees
+   - Each layer signs the layer below
+   - Allows huge number of signatures
+   - Height H = d * h' where d=layers, h'=per-layer height
+
+Security: Based on hash function security
+   - Pre-image resistance
+   - Second pre-image resistance
+   - Collision resistance
+   - Post-quantum secure (no lattice/number theory)
+
+Testing SLH-DSA key generation...
+
+  Public key (32 bytes):
+    pk_seed: 0da1cd45bb1f1cc8...
+    pk_root: 60a551ae50b487aa...
+
+  Secret key (64 bytes):
+    sk_seed: be4980b175df3b5a...
+    sk_prf:  8a77cdf4ec079b36...
+    pk_seed: 0da1cd45bb1f1cc8...
+    pk_root: 60a551ae50b487aa...
+
+  Key generation PASSED!
+
+Testing SLH-DSA sign/verify flow...
+
+  SLH-DSA Signing Process:
+
+  1. Generate randomness: 591736e43d7a9eb9...
+  2. Compute R = PRF(sk_prf, opt_rand, msg): 778f13ba9dc40b56...
+  3. Derive indices: tree=15, leaf=0
+  4. Sign with FORS (few-time signature on message digest)
+     - Uses 4 trees with 8 leaves each
+  5. Sign FORS pk with hypertree
+     - 2 layers of XMSS trees
+     - Each tree has height 4
+     - Uses WOTS+ at each tree layer
+  6. Signature = R || FORS_sig || HT_sig
+
+  SLH-DSA Verification Process:
+
+  1. Parse signature: R, FORS_sig, HT_sig
+  2. Recompute message digest from R, pk, msg
+  3. Derive tree/leaf indices from digest
+  4. Verify FORS signature -> get FORS pk'
+  5. Verify hypertree signature on FORS pk'
+     - Traverse up through 2 XMSS layers
+     - Verify WOTS+ signature at each layer
+     - Use auth path to compute tree root
+  6. Check final root matches pk.root
+
+  Sign/verify flow demonstration PASSED!
+
+=== SLH-DSA Parameter Sets (NIST Standards) ===
+
+Security Level 1 (128-bit):
+  SLH-DSA-SHA2-128f: Fast, 17,088 byte signatures
+  SLH-DSA-SHA2-128s: Small, 7,856 byte signatures
+  SLH-DSA-SHAKE-128f/s: Same but with SHAKE
+
+Security Level 3 (192-bit):
+  SLH-DSA-SHA2-192f: 35,664 byte signatures
+  SLH-DSA-SHA2-192s: 16,224 byte signatures
+
+Security Level 5 (256-bit):
+  SLH-DSA-SHA2-256f: 49,856 byte signatures
+  SLH-DSA-SHA2-256s: 29,792 byte signatures
+
+Tradeoffs:
+  'f' variants: Faster signing, larger signatures
+  's' variants: Slower signing, smaller signatures
+  SHA2 variants: Faster on hardware-accelerated platforms
+  SHAKE variants: More conservative, simpler security proof
+
+=== Demo complete! ===

@@ -2,7 +2,7 @@
 
 ## test_setup.c
 
-**Location**: `/home/nuno/next-gig/source_code/module_01_prerequisites/test_setup.c`
+**Location**: `source_code/module_01_prerequisites/test_setup.c`
 
 **Description**: Verifies PQC development environment by testing OpenSSL and liboqs functionality.
 

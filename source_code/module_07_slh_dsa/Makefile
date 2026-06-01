@@ -12,11 +12,13 @@ RUNNABLE_SOURCES = unit_7_1_lamport_signatures.c \
                    unit_7_7_integration_tests.c
 RUNNABLE_TARGETS = $(RUNNABLE_SOURCES:.c=)
 
-# unit_7_6_slh_dsa_full.c requires OpenSSL (-lcrypto). Built only via
-# `make build-ssl`. Syntax-checked by `make check` regardless.
+# unit_7_6_slh_dsa_full.c is OpenSSL-backed SLH-DSA code with its own main()
+# self-test. It requires linking with -lcrypto, so it is built by `make
+# build-ssl` into a standalone executable. If OpenSSL development headers are
+# absent, use `make check` which only syntax-checks it (-fsyntax-only).
 SSL_SOURCES = unit_7_6_slh_dsa_full.c
 SSL_TARGETS = $(SSL_SOURCES:.c=)
-SSL_LDFLAGS = -lm -lcrypto
+SSL_LDFLAGS = -lcrypto
 
 .PHONY: all clean test check build-ssl
 
@@ -25,13 +27,15 @@ all: $(RUNNABLE_TARGETS)
 %: %.c
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
-# Build the OpenSSL-dependent target only when explicitly requested.
+# Build the OpenSSL-dependent self-test into a standalone executable.
+# Requires OpenSSL development headers + libcrypto.
 build-ssl: $(SSL_TARGETS)
 
-$(SSL_TARGETS): $(SSL_SOURCES)
+$(SSL_TARGETS): %: %.c
 	$(CC) $(CFLAGS) -o $@ $< $(SSL_LDFLAGS)
 
-# Syntax-only check for all sources (no link step).
+# Syntax-only check for the OpenSSL-dependent source (no link step). Use this
+# when libcrypto/headers are unavailable.
 check: $(RUNNABLE_TARGETS)
 	@echo "Syntax-checking OpenSSL-dependent sources..."
 	@for src in $(SSL_SOURCES); do \

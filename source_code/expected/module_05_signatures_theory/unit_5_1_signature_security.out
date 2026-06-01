@@ -1,0 +1,105 @@
+=== Digital Signature Security Concepts ===
+Educational demonstration using Schnorr-like signatures
+Parameters: P=997, G=9, Q=83
+WARNING: These parameters are NOT secure!
+
+=== Correctness Demonstration ===
+
+KeyGen complete:
+  Secret key x = 35
+  Public key y = g^x = 9^35 = 108 (mod 997)
+
+Sign complete:
+  Nonce k = 1
+  r = g^k = 9
+  e = H(r,m) = 18
+  s = k + x*e = 1 + 35*18 = 50 (mod 83)
+
+Verify:
+  e = H(r,m) = 18
+  LHS: g^s = 9^50 = 250
+  RHS: r * y^e = 9 * 108^18 = 250
+
+Message: "Hello, signatures!"
+Signature: (r=9, s=50)
+Verification: VALID ✓
+
+=== EUF-CMA Game Demonstration ===
+
+--- Challenger Setup ---
+KeyGen complete:
+  Secret key x = 46
+  Public key y = g^x = 9^46 = 257 (mod 997)
+Challenger sends pk to Adversary
+
+--- Query Phase ---
+Adversary requests signature on: "Message 1"
+Sign complete:
+  Nonce k = 35
+  r = g^k = 108
+  e = H(r,m) = 2
+  s = k + x*e = 35 + 46*2 = 44 (mod 83)
+
+Adversary requests signature on: "Message 2"
+Sign complete:
+  Nonce k = 21
+  r = g^k = 388
+  e = H(r,m) = 30
+  s = k + x*e = 21 + 46*30 = 73 (mod 83)
+
+--- Forgery Phase ---
+
+Attempt 1: Replay signed message
+  Adversary outputs: ("Message 1", signature from query)
+  Result: NOT A FORGERY - message was in query set Q
+
+Attempt 2: Forge on new message
+  Adversary outputs: ("New message", random signature)
+Verify:
+  e = H(r,m) = 20
+  LHS: g^s = 9^456 = 332
+  RHS: r * y^e = 123 * 257^20 = 412
+  Verification: INVALID (failed)
+  Result: Forgery attempt failed (as expected)
+
+To forge, adversary would need to:
+  1. Compute discrete log: find x such that y = g^x
+  2. Or find collision in hash function
+  Both are computationally hard for real parameters.
+
+=== Nonce Reuse Attack Demonstration ===
+
+KeyGen complete:
+  Secret key x = 41
+  Public key y = g^x = 9^41 = 332 (mod 997)
+Target secret key: x = 41 (attacker doesn't know this)
+
+Signature 1 on "First message":
+  k = 42 (REUSED!), e1 = 38, s1 = 23
+
+Signature 2 on "Second message":
+  k = 42 (REUSED!), e2 = 3, s2 = 82
+
+--- Attacker's Recovery ---
+Attacker observes: r1 = r2 = 994 (same r means same k)
+
+From signatures:
+  s1 = k + x*e1 (mod Q)
+  s2 = k + x*e2 (mod Q)
+
+Subtracting:
+  s1 - s2 = x*(e1 - e2) (mod Q)
+  23 - 82 = x*(38 - 3) (mod 83)
+  x = (s1 - s2) * (e1 - e2)^(-1)
+  x = 24 * 35^(-1) = 24 * 19 = 41 (mod 83)
+
+Recovered secret key: x = 41
+Actual secret key:    x = 41
+Attack SUCCEEDED!
+
+*** LESSON: Never reuse nonces in Schnorr/ECDSA signatures! ***
+*** This is why ML-DSA uses deterministic nonce derivation. ***
+
+==============================================
+Overall result: PASS (all checks behaved as expected)
+==============================================

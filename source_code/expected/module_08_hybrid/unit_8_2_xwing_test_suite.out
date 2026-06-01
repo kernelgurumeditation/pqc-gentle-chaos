@@ -1,0 +1,30 @@
+=== X-Wing Hybrid KEM Demo ===
+
+test_xwing_basic: PASSED
+test_xwing_different_keys: PASSED
+test_xwing_malleability: PASSED
+
+=== X-Wing Hybrid KEM Structure ===
+
+X-Wing combines:
+  - X25519 (Curve25519 ECDH): Classical security
+  - ML-KEM-768 (Kyber): Post-quantum security
+
+Sizes:
+  Public key:  1216 bytes (32 + 1184)
+  Secret key:  2432 bytes (32 + 2400)
+  Ciphertext:  1120 bytes (32 + 1088)
+  Shared secret: 32 bytes
+
+Key Exchange Flow:
+  1. Alice: (pk_A, sk_A) = XWing.KeyGen()
+  2. Alice -> Bob: pk_A
+  3. Bob: (ct, ss_B) = XWing.Encaps(pk_A)
+  4. Bob -> Alice: ct
+  5. Alice: ss_A = XWing.Decaps(ct, sk_A)
+  6. ss_A == ss_B (both parties have shared secret)
+
+Security: IND-CCA secure if EITHER X25519 OR ML-KEM is secure
+  - Protects against both classical and quantum adversaries
+
+All tests passed!

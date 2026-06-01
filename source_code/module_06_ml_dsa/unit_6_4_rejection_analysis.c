@@ -337,7 +337,11 @@ void analyze_rejection_distribution(void) {
 }
 
 int main(void) {
-    prng_seed((uint64_t)time(NULL));
+    /* Fixed default seed => reproducible teaching output; override with
+     * PQC_DEMO_SEED. */
+    const char *demo_seed_env = getenv("PQC_DEMO_SEED");
+    prng_seed(demo_seed_env ? (uint64_t)strtoul(demo_seed_env, NULL, 10)
+                            : 1234567u);
     analyze_rejection_distribution();
     return 0;
 }

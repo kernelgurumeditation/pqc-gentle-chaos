@@ -70,6 +70,8 @@ static inline int16_t mont_reduce(int32_t a) {
 int main(void) {
     printf("Barrett Reduction Tests (q = %d):\n\n", KYBER_Q);
 
+    int failures = 0;
+
     // Test Barrett reduction
     int32_t test_values[] = {0, 1, 3328, 3329, 3330, 10000, 100000};
 
@@ -78,6 +80,9 @@ int main(void) {
         int16_t reduced = barrett_reduce(a);
         printf("barrett_reduce(%d) = %d", a, reduced);
         printf(" (expected: %d)\n", a % KYBER_Q);
+        // Compare congruence mod q (representative may differ).
+        if ((((int32_t)reduced % KYBER_Q) + KYBER_Q) % KYBER_Q != a % KYBER_Q)
+            failures++;
     }
 
     printf("\nMontgomery Form Tests:\n");
@@ -86,7 +91,17 @@ int main(void) {
         int16_t mont_a = to_mont(a);
         printf("to_mont(%d) = %d, ", a, mont_a);
         printf("expected: %d\n", ((int32_t)a * MONT_R) % KYBER_Q);
+        if ((((int32_t)mont_a % KYBER_Q) + KYBER_Q) % KYBER_Q !=
+            ((int32_t)a * MONT_R) % KYBER_Q)
+            failures++;
     }
 
-    return 0;
+    if (failures == 0) {
+        printf("\n[PASS] Barrett and Montgomery results match expected\n");
+    } else {
+        printf("\n[FAIL] %d reduction result(s) mismatched\n", failures);
+    }
+
+    /* Nonzero exit on failure so the test harness can detect it. */
+    return failures == 0 ? 0 : 1;
 }

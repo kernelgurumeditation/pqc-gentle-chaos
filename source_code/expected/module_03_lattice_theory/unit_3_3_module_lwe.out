@@ -1,0 +1,18 @@
+=== Module-LWE Structure Demo (k=3) ===
+
+--- Key Generation ---
+Generated 3x3 matrix A (each entry is degree-255 polynomial)
+Sampled secret s (k=3 polynomials with small coefficients)
+s[0]: [2, -1, 0, ..., 2] (showing first 3 and last)
+Computed t = A*s + e
+t[0]: [3314, 1610, 601, ..., 2702] (showing first 3 and last)
+
+--- Key Sizes ---
+Public key (A seed + t): 32 + 3 * 384 = 1184 bytes
+  (A is generated from 32-byte seed, not stored)
+Secret key (s): 3 * 384 = 1152 bytes (uncompressed)
+
+--- Module-LWE Instance ---
+Given: Matrix A and vector t = A*s + e
+Task: Find secret vector s (k=3 polynomials)
+Difficulty: Requires solving Module-LWE with dimension k*n = 768

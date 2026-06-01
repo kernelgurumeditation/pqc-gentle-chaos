@@ -193,7 +193,9 @@ int main(void) {
     printf("Lamport One-Time Signature Demonstration\n");
     printf("=========================================\n\n");
 
-    srand(12345);  /* Reproducible for demo */
+    /* Fixed default seed => reproducible teaching output; override with PQC_DEMO_SEED. */
+    const char *demo_seed_env = getenv("PQC_DEMO_SEED");
+    srand(demo_seed_env ? (unsigned)strtoul(demo_seed_env, NULL, 10) : 1234567u);
 
     /* Basic sign/verify */
     lamport_pk pk;
@@ -209,6 +211,8 @@ int main(void) {
 
     int result = lamport_verify(&pk, (uint8_t *)message, strlen(message), &sig);
     printf("\nVerification result: %s\n", result == 0 ? "VALID" : "INVALID");
+    /* A correctly produced signature MUST verify. */
+    int ok_valid = (result == 0);
 
     /* Test with wrong message */
     printf("\nTesting with wrong message...\n");
@@ -216,6 +220,8 @@ int main(void) {
     result = lamport_verify(&pk, (uint8_t *)wrong, strlen(wrong), &sig);
     printf("Wrong message result: %s (expected INVALID)\n",
            result == 0 ? "VALID" : "INVALID");
+    /* A wrong message MUST NOT verify against this signature. */
+    int ok_wrong = (result != 0);
 
     /* Demonstrate vulnerability */
     demonstrate_one_time_vulnerability();
@@ -223,5 +229,11 @@ int main(void) {
     /* Size comparison */
     print_size_comparison();
 
-    return 0;
+    /* Explicit PASS/FAIL verdict so the demo is usable as an automated test. */
+    int all_ok = ok_valid && ok_wrong;
+    printf("\n=== Self-test verdict ===\n");
+    printf("  Valid signature accepted : %s\n", ok_valid ? "PASS" : "FAIL");
+    printf("  Wrong message rejected   : %s\n", ok_wrong ? "PASS" : "FAIL");
+    printf("Result: %s\n", all_ok ? "PASS" : "FAIL");
+    return all_ok ? 0 : 1;
 }

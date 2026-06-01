@@ -81,6 +81,13 @@ void invntt(int16_t poly[N]) {
     for (unsigned int i = 0; i < N; i++) {
         poly[i] = fqmul(poly[i], 1441);
     }
+    // The fqmul-based butterflies leave the result in the Montgomery domain
+    // (each coefficient carries an extra factor of R = 2^16 mod Q). Convert
+    // back to the standard domain so ntt() followed by invntt() is the exact
+    // identity: fqmul(x, 1) = x * R^{-1} mod Q strips the surplus R.
+    for (unsigned int i = 0; i < N; i++) {
+        poly[i] = fqmul(poly[i], 1);
+    }
 }
 
 // Basemul: multiply two degree-1 polynomials mod X^2 - zeta
@@ -127,5 +134,12 @@ int main(void) {
     }
     printf("Round-trip errors: %d\n", errors);
 
-    return 0;
+    if (errors == 0) {
+        printf("[PASS] NTT followed by inverse NTT recovers the input\n");
+    } else {
+        printf("[FAIL] NTT round-trip produced %d mismatch(es)\n", errors);
+    }
+
+    /* Nonzero exit on failure so the test harness can detect it. */
+    return errors == 0 ? 0 : 1;
 }

@@ -275,7 +275,11 @@ int main(void) {
     /* Empirical testing */
     printf("Empirical testing (1000 signatures):\n");
 
-    uint32_t seed = time(NULL);
+    /* Fixed default seed => reproducible teaching output; override with
+     * PQC_DEMO_SEED. */
+    const char *demo_seed_env = getenv("PQC_DEMO_SEED");
+    uint32_t seed = demo_seed_env ? (uint32_t)strtoul(demo_seed_env, NULL, 10)
+                                  : 1234567u;
 
     /* Generate secret key */
     polyvec s1;

@@ -1,0 +1,48 @@
+============================================================
+  PQC HANDBOOK - GRADED CAPSTONE: Hybrid Secure Channel
+  (toy/educational - NOT production; integrates M4, M6, M8)
+============================================================
+RNG seed (PQC_DEMO_SEED or default): 1234567
+
+------------------------------------------------------------
+STAGE A  HYBRID KEM  (Module 8 X-Wing combiner + Module 4 KEM)
+------------------------------------------------------------
+  client hybrid ss : 5180b1508f6bdce2727693a161645711a8000afb5cc529fcf250c9c99e865343
+  server hybrid ss : 5180b1508f6bdce2727693a161645711a8000afb5cc529fcf250c9c99e865343
+  [PASS] client and server derived the SAME hybrid shared secret
+
+------------------------------------------------------------
+STAGE B  KDF  (Module 4 HKDF-style extract + expand)
+------------------------------------------------------------
+  PRK (extract)    : 44f7e2b996bcdd933daebd235c74705174f7a9bca1f27f1e9a3bc57d66d32717
+  session key (exp): b0886d98d2ef78bd85ba00b090911a3a7ead686be53446567355b98fbe281865
+  [PASS] derived a 32-byte session key from the shared secret
+
+------------------------------------------------------------
+STAGE C  SIGN / VERIFY  (Module 6 ML-DSA-style FS signature)
+------------------------------------------------------------
+  transcript hash  : b447b52321dcee6b4acbd964a4ecc504c1910d73282d5a9bf2c39c712410c605
+  sig c_tilde      : 35252888a1533fed0d40bf63dc9da2ba4673df4c183887e92f93a086b2efc4a4
+  Fiat-Shamir attempts (rejection sampling): 1
+  [PASS] verify accepts the valid signature
+  [PASS] verify REJECTS the 1-bit-flipped transcript
+
+------------------------------------------------------------
+STAGE D  SELF-TEST / KAT  (fixed known-answer values)
+------------------------------------------------------------
+  [PASS] hybrid shared secret matches fixed KAT
+  [PASS] derived session key matches fixed KAT
+
+------------------------------------------------------------
+STAGE E  CONSTANT-TIME compare  (timing side-channel note)
+------------------------------------------------------------
+  All secret comparisons above (shared secret, session key,
+  signature challenge, KAT checks) use ct_memcmp(), which folds
+  every byte into one accumulator and never early-exits, so its
+  run time does NOT leak how many leading bytes matched.
+  [PASS] ct_memcmp(equal)   == 0
+  [PASS] ct_memcmp(differ)  != 0
+
+============================================================
+CAPSTONE: PASS
+============================================================

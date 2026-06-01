@@ -2,6 +2,9 @@
 unit_*
 !*.c
 !*.h
+# Golden-output fixtures are tracked test data, not build artifacts.
+!expected/
+!expected/**
 
 # Build artifacts
 *.o
@@ -18,6 +21,7 @@ EXTRACTION_*.md
 
 # Other executables (non-unit)
 lattice_basics
+common/verify_params
 
 # IDE
 .vscode/

@@ -1,0 +1,28 @@
+=== ML-DSA-65 Complete Implementation ===
+
+This educational implementation demonstrates the structure
+of ML-DSA signing and verification.
+
+Parameters (ML-DSA-65, FIPS 204):
+  q       = 8380417
+  n       = 256
+  (k, l)  = (6, 5)
+  eta     = 4
+  tau     = 49
+  beta    = 196
+  gamma1  = 524288
+  gamma2  = 261888
+  omega   = 55
+  d       = 13
+  c_tilde = 48 bytes
+  pk      = 1952 bytes
+  sig     = 3309 bytes
+
+Generated 32-byte seed (reproducible PRNG).
+
+Self-test (sign / verify / tamper detection):
+  [PASS] valid signature verifies
+  [PASS] 1-bit-flipped signature is REJECTED
+  [PASS] 1-bit-flipped message is REJECTED
+
+=== Self-test PASSED: all properties hold ===

@@ -1,0 +1,52 @@
+=== Testing z Encoding (20-bit) ===
+
+Encoded z: 3200 bytes
+First 20 bytes: ffff8703838d9fa70a891b3fc7118fa9dee61895...
+Verification: PASS (0 errors)
+
+Sample values:
+  z[0][0]: original=0, decoded=0
+  z[0][1]: original=-12345, decoded=-12345
+  z[0][2]: original=24690, decoded=24690
+  z[0][3]: original=-37035, decoded=-37035
+  z[0][4]: original=49380, decoded=49380
+
+=== Testing Hint Encoding ===
+
+Encoded 7 hints into 61 bytes
+Position bytes: 10 50 120 45 77 200 15 0 0 0 ...
+End markers: 3 4 4 6 7 7 
+Decoded 7 hints
+Verification: PASS (0 errors)
+
+=== Testing t₁ Encoding (10-bit) ===
+
+Encoded t₁: 1920 bytes
+Verification: PASS (0 errors)
+
+=== ML-DSA-65 Size Summary ===
+
+Public Key Components:
+  ρ (seed):          32 bytes
+  t₁ (high bits):    1920 bytes
+  Total PK:          1952 bytes
+
+Secret Key Components:
+  ρ (seed):          32 bytes
+  K (signing key):   32 bytes
+  tr (pk hash):      64 bytes
+  s₁:                640 bytes
+  s₂:                768 bytes
+  t₀ (low bits):     2496 bytes
+  Total SK:          4032 bytes
+
+Signature Components:
+  c̃ (challenge):     48 bytes
+  z (response):      3200 bytes
+  h (hints):         61 bytes
+  Total Signature:   3309 bytes
+
+Comparison:
+  RSA-2048:  pk=256, sig=256 (total 512)
+  ECDSA-256: pk=64, sig=64 (total 128)
+  ML-DSA-65: pk=1952, sig=3309 (total 5261)

@@ -1,0 +1,81 @@
+ML-DSA-65 Parameters:
+=====================
+Ring dimension n = 256
+Modulus q = 8380417 (= 2^23 - 2^13 + 1)
+Matrix dimensions (k, l) = (6, 5)
+Secret coefficient bound η = 4
+Masking bound γ1 = 524288 (= 2^19)
+Decomposition γ2 = 261888 (= (q-1)/32)
+Challenge weight τ = 49
+Rejection bound β = τ·η = 196
+Max hint weight ω = 55
+Dropped bits d = 13
+
+Approximate sizes:
+  Public key:  ~1952 bytes
+  Secret key:  ~4032 bytes
+  Signature:   ~3309 bytes
+
+Decomposition Demo:
+===================
+Using α = 2·γ2 = 523776
+
+r =        0: r1 (high) =   0, r0 (low) =        0
+  Verify: r1·α + r0 = 0·523776 + 0 = 0 ✓
+r =   100000: r1 (high) =   0, r0 (low) =   100000
+  Verify: r1·α + r0 = 0·523776 + 100000 = 100000 ✓
+r =  1000000: r1 (high) =   2, r0 (low) =   -47552
+  Verify: r1·α + r0 = 2·523776 + -47552 = 1000000 ✓
+r =  4000000: r1 (high) =   8, r0 (low) =  -190208
+  Verify: r1·α + r0 = 8·523776 + -190208 = 4000000 ✓
+r =  8000000: r1 (high) =  15, r0 (low) =   143360
+  Verify: r1·α + r0 = 15·523776 + 143360 = 8000000 ✓
+
+Hint Mechanism Demo:
+====================
+The hint encodes when adding a value changes the high bits.
+
+Base value r = 260000
+HighBits(r) = 0
+
+z =       0: hint = 0, HighBits(r) = 0, HighBits(r+z) = 0, UseHint = 0
+z =   10000: hint = 1, HighBits(r) = 0, HighBits(r+z) = 1, UseHint = 0
+z =   50000: hint = 1, HighBits(r) = 0, HighBits(r+z) = 1, UseHint = 0
+z =  -30000: hint = 0, HighBits(r) = 0, HighBits(r+z) = 0, UseHint = 0
+z =  -80000: hint = 0, HighBits(r) = 0, HighBits(r+z) = 0, UseHint = 0
+
+Rejection Bound Demo:
+=====================
+In ML-DSA signing:
+1. Sample masking y with coefficients < γ1 = 524288
+2. Compute z = y + c·s1
+3. Reject if any coefficient of z has |z_i| ≥ γ1 - β = 524092
+
+Why γ1 - β?
+  - s1 coefficients: |s1_i| ≤ η = 4
+  - Challenge c has τ = 49 non-zero (±1) coefficients
+  - Product c·s1 has coefficients bounded by ~τ·η = β = 196
+  - If y_i ∈ [-(γ1-1), γ1-1], then z_i could be as large as γ1-1+β
+  - Rejection threshold γ1-β ensures z reveals nothing about s1
+
+Expected rejection probability: ~1/M where M ≈ 4-7
+This means ~4-7 loop iterations on average per signature.
+
+Key Structure Sizes (ML-DSA-65):
+================================
+Public key (pk):
+  - rho:  32 bytes (seed for A)
+  - t1:   6 polynomials × 10 bits × 256 coeffs / 8 = 1920 bytes
+
+Secret key (sk):
+  - rho:  32 bytes
+  - K:    32 bytes (signing key seed)
+  - tr:   64 bytes (H(pk))
+  - s1:   5 polynomials (small coefficients)
+  - s2:   6 polynomials (small coefficients)
+  - t0:   6 polynomials (low bits of t)
+
+Signature (σ):
+  - c̃:    48 bytes (challenge hash)
+  - z:    5 polynomials × 20 bits × 256 coeffs / 8 = 3200 bytes
+  - h:    ≤ ω + k = 55 + 6 = 61 bytes

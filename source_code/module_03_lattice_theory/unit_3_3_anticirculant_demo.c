@@ -111,5 +111,8 @@ int main(void) {
     }
     printf("\nResults match: %s\n", equal ? "YES ✓" : "NO ✗");
 
-    return 0;
+    /* Explicit success/failure verdict: anti-circulant matrix multiplication MUST
+     * equal direct negacyclic polynomial multiplication. */
+    printf("\n=== RESULT: %s ===\n", equal ? "PASS" : "FAIL");
+    return equal ? 0 : 1;
 }

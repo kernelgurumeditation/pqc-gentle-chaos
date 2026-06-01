@@ -1,0 +1,12 @@
+=== Brute Force LWE Solver ===
+n=2, q=17, error_bound=1
+
+True secret: (3, 5)
+Generated 4 samples
+
+Found secret: (3, 5)
+Correct! ✓
+
+Complexity: O(q^n) = O(17^2) = O(289) operations
+
+=== RESULT: PASS ===

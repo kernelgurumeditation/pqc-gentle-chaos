@@ -77,6 +77,7 @@ A structured, in-depth path to mastering FIPS 203 (ML-KEM), FIPS 204 (ML-DSA), F
     - [Unit 9.3: S/MIME and Email Security](#unit-93-smime-and-email-security)
     - [Unit 9.4: VPN and IPsec Integration](#unit-94-vpn-and-ipsec-integration)
     - [Unit 9.5: Code Signing and PKI Integration](#unit-95-code-signing-and-pki-integration)
+    - [Unit 9.6: DNSSEC and DNS with Post-Quantum Signatures](#unit-96-dnssec-and-dns-with-post-quantum-signatures)
 
 **Future Directions**
 
@@ -85,7 +86,7 @@ A structured, in-depth path to mastering FIPS 203 (ML-KEM), FIPS 204 (ML-DSA), F
     - [Unit 10.2: Emerging Research Directions](#unit-102-emerging-research-directions)
     - [Unit 10.3: Cryptographic Agility](#unit-103-cryptographic-agility)
     - [Unit 10.4: Implementation Best Practices Summary](#unit-104-implementation-best-practices-summary)
-    - [Unit 10.5: NIST Additional Signatures — Round 2 Status](#unit-105-nist-additional-signatures-round-2-status)
+    - [Unit 10.5: NIST Additional Signatures — Round 2 Concluded](#unit-105-nist-additional-signatures-round-2-concluded)
     - [Unit 10.6: Post-Quantum Threshold Cryptography](#unit-106-post-quantum-threshold-cryptography)
 
 **Migration**
@@ -376,7 +377,7 @@ Understanding PQC requires familiarity with specialized terminology. Reference t
 | Term | Definition |
 |------|------------|
 | **Encapsulation Key (ek)** | Public key used to encapsulate shared secrets |
-| **Decapsulation Key (dk)** | Secret key used to decapsulate shared secrets (contains ek, the decryption key, and an implicit rejection seed) |
+| **Decapsulation Key (dk)** | Secret key used to decapsulate shared secrets (contains the K-PKE decryption key, ek, H(ek), and the implicit-rejection seed z) |
 | **Compress/Decompress** | Functions to reduce coefficient bit-width for smaller ciphertexts |
 | **Fujisaki-Okamoto Transform** | Technique to convert IND-CPA encryption to IND-CCA2 KEM |
 
@@ -401,13 +402,17 @@ Understanding PQC requires familiarity with specialized terminology. Reference t
 
 ### Security Levels
 
-| NIST Level | Classical Equivalent | Quantum Equivalent | Example Algorithm |
-|------------|---------------------|-------------------|-------------------|
-| Level 1 | AES-128 | SHAKE256 with 128-bit output | ML-KEM-512 |
-| Level 2 | SHA-256 collision | - | ML-DSA-44 |
-| Level 3 | AES-192 | SHAKE256 with 192-bit output | ML-KEM-768, ML-DSA-65 |
-| Level 4 | SHA-384 collision | - | - |
-| Level 5 | AES-256 | SHAKE256 with 256-bit output | ML-KEM-1024, ML-DSA-87 |
+NIST defines each security category by reference to the cost of attacking a well-studied primitive (against *both* classical and quantum adversaries), not by a fixed bit count:
+
+| NIST Category | Definition (at least as hard as...) | Approx. quantum security strength | Example Algorithm |
+|---------------|-------------------------------------|-----------------------------------|-------------------|
+| Category 1 | AES-128 key search | ~128-bit (Grover-bounded) | ML-KEM-512 |
+| Category 2 | SHA-256 / SHA3-256 collision | ~128-bit | ML-DSA-44 |
+| Category 3 | AES-192 key search | ~192-bit (Grover-bounded) | ML-KEM-768, ML-DSA-65 |
+| Category 4 | SHA-384 / SHA3-384 collision | ~192-bit | - |
+| Category 5 | AES-256 key search | ~256-bit (Grover-bounded) | ML-KEM-1024, ML-DSA-87 |
+
+*Note: the "approximate quantum security strength" column is a rough characterization only. NIST's categories are defined by the attack cost of the reference primitive itself (key search / collision finding), which already accounts for the best known quantum speedups (e.g. Grover for key search), so a category is a comparative floor rather than an exact bit figure.*
 
 ### Hybrid Cryptography Terms
 
@@ -4150,6 +4155,10 @@ X^256 + 1 = ∏_{i=0}^{127} (X² - 17^(2i+1))  mod 3329
 
 This allows the NTT to transform 256 coefficients into 128 degree-1 polynomial pairs, achieving negacyclic convolution without requiring 512th roots.
 
+> **❗ Common Misconception:** ML-KEM uses a full/complete NTT that diagonalizes polynomial multiplication all the way down to linear factors (single-coefficient pointwise products).
+>
+> **Reality:** The modulus q = 3329 only admits a primitive 256th root of unity, not a 512th. So the NTT of ML-KEM's ring Z_q[X]/(X^256 + 1) stops one level early — at 128 degree-1 quotients. "Pointwise" multiplication in the NTT domain is therefore over 2-coefficient products, each taken modulo a factor of the form (X² − ζ), not over single scalars.
+
 See FIPS 203 Section 4.3: *"There are 128 primitive 256-th roots of unity and no primitive 512-th roots of unity in Zq."*
 
 ---
@@ -4202,6 +4211,8 @@ b' = a - ω·b
 **Structure:** The NTT recursively splits the computation, combining results with butterflies.
 
 **Stages:** A full NTT for n = 256 would have log₂(256) = 8 stages, but ML-KEM uses an *incomplete* NTT with only **7 stages** (reducing to 128 degree-1 polynomial pairs rather than 256 scalars).
+
+> **Run it:** `cd source_code/module_02_math_foundations && make && ./unit_2_5_ntt` — see `source_code/README.md` for prerequisites.
 
 ---
 
@@ -4756,17 +4767,33 @@ For the public matrix A, we need uniform random polynomials.
 3. Otherwise, read more bits and repeat
 
 ```c
+#include <string.h>   // memcpy
+
+// Provided by a FIPS 202 implementation; fills `out` with `outlen` SHAKE128 bytes.
+extern void shake128(uint8_t *out, size_t outlen, const uint8_t *in, size_t inlen);
+
 // Sample uniform polynomial from seed using SHAKE128
 void poly_uniform(poly *r, const uint8_t seed[32], uint8_t x, uint8_t y) {
     // In practice: SHAKE128(seed || x || y) -> bytes
     // Parse bytes into coefficients using rejection sampling
 
     // Simplified version (not production):
-    uint8_t buf[3 * N];  // 3 bytes per coefficient attempt
-    // shake128(buf, sizeof(buf), seed, 32);  // Would use real SHAKE
+    // Generous over-allocation so rejection sampling almost never runs dry.
+    // (~22% of 12-bit draws exceed q=3329 and are rejected, so 4*N coefficient
+    //  attempts -> 8*N bytes is a comfortable margin; production code squeezes
+    //  the SHAKE128 sponge incrementally instead.)
+    enum { BUFLEN = 8 * N };
+    uint8_t buf[BUFLEN];
+
+    // Domain-separate the seed with the (x, y) matrix indices, then expand.
+    uint8_t ext_seed[34];
+    memcpy(ext_seed, seed, 32);
+    ext_seed[32] = x;
+    ext_seed[33] = y;
+    shake128(buf, sizeof(buf), ext_seed, sizeof(ext_seed));  // real SHAKE128 fill
 
     int ctr = 0, pos = 0;
-    while (ctr < N) {
+    while (ctr < N && pos + 3 <= BUFLEN) {
         // Read 3 bytes, extract two 12-bit values
         uint16_t d1 = ((buf[pos+1] & 0x0F) << 8) | buf[pos];
         uint16_t d2 = (buf[pos+2] << 4) | (buf[pos+1] >> 4);
@@ -4775,6 +4802,9 @@ void poly_uniform(poly *r, const uint8_t seed[32], uint8_t x, uint8_t y) {
         if (d1 < Q) r->coeffs[ctr++] = d1;
         if (ctr < N && d2 < Q) r->coeffs[ctr++] = d2;
     }
+    // If the buffer is exhausted before N coefficients are sampled (vanishingly
+    // rare with this margin), production code would squeeze more bytes from the
+    // same SHAKE128 sponge and continue.
 }
 ```
 
@@ -6751,7 +6781,7 @@ The polynomial X²⁵⁶ + 1 is a **cyclotomic polynomial** with special propert
 
 2. **Enables efficient NTT:** The roots of Xⁿ + 1 are related to 2n-th roots of unity
 
-3. **Splits nicely mod prime q:** q=3329 ≡ 1 (mod 256) enables NTT into 128 degree-1 factors (incomplete NTT; full splitting to 256 linear factors would require q ≡ 1 (mod 512))
+3. **Splits nicely mod prime q:** q=3329 ≡ 1 (mod 256) enables NTT into 128 degree-2 factors (quadratics of the form X² − ζ), totalling degree 256 (incomplete NTT; full splitting to 256 linear factors would require q ≡ 1 (mod 512))
 
 4. **Power-of-two degree:** Hardware-friendly for implementation
 
@@ -8625,7 +8655,7 @@ The secret and error vectors are sampled from the centered binomial distribution
 - ML-KEM-512: η₁=3, η₂=2 (larger η₁ for secrets/errors provides tighter security at lower rank)
 - ML-KEM-768/1024: η₁=η₂=2
 
-Larger η provides more noise (harder problem) but increases decryption failure probability. The choice η = 2 for k ≥ 3 keeps failure probability negligible (< 2^{-140}).
+Larger η provides more noise (harder problem) but increases decryption failure probability. The choice η = 2 for k ≥ 3 keeps failure probability negligible (< 2^{-164} for ML-KEM-768).
 
 **Step 7: Compression parameters trade size for noise margin.**
 Ciphertext compression (d_u, d_v) drops low-order bits to reduce sizes:
@@ -9022,6 +9052,8 @@ Shared secrets always MATCH; modified ciphertext always produces a different key
 
 **Exercise 4.1.3: ML-KEM Parameter Analysis** *(Beginner)*
 
+> **Run it:** `cd source_code/module_04_ml_kem && make && ./unit_4_4_mlkem768_e2e` — see `source_code/README.md` for prerequisites.
+
 (a) Calculate the total bytes that must be transmitted for a single ML-KEM-768 key exchange (encapsulation key + ciphertext).
 
 (b) Compare this to X25519 key exchange (32-byte public key + 32-byte ciphertext). What's the size overhead factor?
@@ -9412,7 +9444,7 @@ This error adds to the noise budget.
 - η₁ = 2, η₂ = 2
 - Typical ||s||, ||e||, ||r'||, ||e₁||, ||e₂|| ≈ 2√n with high probability
 - Total noise < q/4 = 832 with overwhelming probability
-- Decryption failure probability < 2^{-150}
+- Decryption failure probability < 2^{-164}
 
 ---
 
@@ -10004,7 +10036,7 @@ The total noise δ = eᵀr' + e₂ - sᵀe₁ requires careful analysis. For a *
 - Probability of a single coefficient exceeding threshold: < 2^{-100}
 - Union bound over 256 coefficients: < 256 × 2^{-100} ≈ 2^{-92}
 
-**Decryption failure probability ≈ 2^{-140} or better** for ML-KEM-768.
+**Decryption failure probability < 2^{-164}** for ML-KEM-768 (the headline figure from the FIPS 203 / NIST submission analysis). The rough Gaussian estimate below gives a slightly different bound; see the note on why.
 
 #### Detailed Decryption Failure Calculation for ML-KEM-768
 
@@ -10231,9 +10263,9 @@ ML-KEM.Encaps(ek):
 5. Return (c, K)
 
 ML-KEM.Decaps(dk, c):
-1. Parse dk = (dk', ek', z)
+1. Parse dk = (dk', ek', H(ek'), z)  // H(ek') was stored at KeyGen
 2. m' ← K-PKE.Decrypt(dk', c)       // Try to decrypt
-3. (K̄', r') ← G(m' || H(ek'))       // Re-derive randomness
+3. (K̄', r') ← G(m' || H(ek'))       // Re-derive randomness using the stored H(ek')
 4. c' ← K-PKE.Encrypt(ek', m'; r')  // Re-encrypt
 5. K' ← KDF(K̄' || H(c))             // Compute candidate key
 6. K_reject ← KDF(z || H(c))        // Compute rejection key
@@ -11053,7 +11085,7 @@ If K-PKE fails with probability δ:
 - Re-encryption gives c' ≠ c
 - Implicit rejection triggered for honest ciphertext!
 
-This is a correctness issue, not security. ML-KEM parameters ensure δ < 2^{-128}, so this is negligible.
+This is a correctness issue, not security. ML-KEM parameters ensure δ is negligible (< 2^{-164} for ML-KEM-768), so this is negligible.
 
 For security: If attacker can cause decryption failures adaptively, they might learn information. ML-KEM's parameters make this attack infeasible.
 
@@ -11136,7 +11168,7 @@ This is the standard technique for building KEMs from lattice encryption.
 
 #### 4.3.7 Protocol Handling of Decapsulation Failures
 
-While ML-KEM's decapsulation failure probability is cryptographically negligible (< 2^{-128}), protocol designers must still consider how to handle the extremely rare case when it occurs.
+While ML-KEM's decapsulation failure probability is cryptographically negligible (< 2^{-164} for ML-KEM-768), protocol designers must still consider how to handle the extremely rare case when it occurs.
 
 **Understanding the Failure Mode:**
 
@@ -11146,7 +11178,7 @@ Normal operation:
   Receiver: K' = Decaps(dk, c)
   Result: K = K' (shared key agreement succeeds)
 
-Rare failure (probability < 2^{-128}):
+Rare failure (probability < 2^{-164} for ML-KEM-768):
   Sender: (c, K) = Encaps(ek)
   Receiver: K' = Decaps(dk, c)
   Result: K ≠ K' (keys don't match!)
@@ -11193,7 +11225,7 @@ TLS 1.3 Handshake with ML-KEM:
 
 **Implementation Recommendations:**
 
-1. **Don't panic:** At < 2^{-128} probability, you'll never see this in practice
+1. **Don't panic:** At < 2^{-164} probability, you'll never see this in practice
    - More likely: hardware cosmic ray bit flip (~2^{-80})
    - Much more likely: network packet corruption (~2^{-20})
 
@@ -11214,9 +11246,9 @@ TLS 1.3 Handshake with ML-KEM:
 | Aspect | RSA/ECDH | ML-KEM |
 |--------|----------|--------|
 | Decapsulation can fail | No (always decrypts) | Yes (theoretically) |
-| Failure probability | 0 | < 2^{-128} |
+| Failure probability | 0 | < 2^{-164} |
 | Detection | N/A | Via higher-layer MAC |
-| Retry needed | Never | Once per ~2^{128} handshakes |
+| Retry needed | Never | Once per ~2^{164} handshakes |
 
 **Security Consideration:**
 
@@ -11408,6 +11440,8 @@ This module provided a comprehensive examination of ML-KEM:
 - ✓ Correct polynomial arithmetic (Units 2.3, 2.5)
 - ✓ NTT for efficient multiplication
 - ✓ Proper sampling (CBD, rejection sampling)
+
+> **Run it:** `cd source_code/module_03_lattice_theory && make && ./unit_3_4_kpke` — see `source_code/README.md` for prerequisites.
 - ✓ Compression functions
 - ✓ FO transform with implicit rejection
 - ✓ Constant-time implementation throughout
@@ -12175,7 +12209,7 @@ void demo_nonce_reuse_attack(void) {
     printf("Attack %s!\n", (recovered_x == secret_x) ? "SUCCEEDED" : "failed");
 
     printf("\n*** LESSON: Never reuse nonces in Schnorr/ECDSA signatures! ***\n");
-    printf("*** This is why ML-DSA uses deterministic nonce derivation. ***\n");
+    printf("*** This is why ML-DSA derives its mask via a PRF (rho' = H(K||rnd||mu)), not a raw RNG. ***\n");
 }
 
 /*
@@ -12241,7 +12275,7 @@ Actual secret key:    x = 234
 Attack SUCCEEDED!
 
 *** LESSON: Never reuse nonces in Schnorr/ECDSA signatures! ***
-*** This is why ML-DSA uses deterministic nonce derivation. ***
+*** This is why ML-DSA derives its mask via a PRF (rho' = H(K||rnd||mu)), not a raw RNG. ***
 ```
 
 ---
@@ -14796,7 +14830,7 @@ Deterministic signatures:
 - Attacker can't gain information by requesting same signature twice
 - Easier to implement without side-channel leaks
 
-ML-DSA allows both modes; deterministic is recommended for high-security applications.
+ML-DSA allows both modes. FIPS 204's default is the hedged (randomized) variant, which injects a fresh `rnd` value; fully deterministic signing (`rnd = 0`) is an option that some high-security deployments choose for reproducibility, though hedged signing is generally preferred for its fault- and side-channel resilience.
 
 ---
 
@@ -14904,7 +14938,7 @@ After completing this unit, you will be able to:
 ML-DSA is a digital signature scheme based on the Module-LWE and Module-SIS problems. It provides:
 - **Post-quantum security:** Resistant to known quantum attacks
 - **EUF-CMA security:** Existential unforgeability under chosen message attack
-- **Deterministic signing:** (With optional hedged randomness)
+- **Hedged (randomized) signing by default:** FIPS 204's default mixes a fresh `rnd` value into signing; fully deterministic signing (`rnd = 0`) is an option
 - **Compact signatures:** Smaller than many other PQC signature schemes
 
 **High-Level Structure:**
@@ -15959,6 +15993,10 @@ z_i distribution                   z_i distribution (shifted)
 #### 6.2.2 The Rejection Sampling Solution
 
 **Key Insight:** Instead of outputting z = y + c·s directly, we only output z when it "looks like" it came from a distribution independent of s.
+
+> **❗ Common Misconception:** Rejection sampling is "just retrying until the numbers happen to be small enough," and since y is random it leaks nothing.
+>
+> **Reality:** Rejection sampling is a security mechanism, not an optimization. It forces the distribution of the published signature vector z to be **independent of the secret key**. Without it, z = y + c·s1 is a noisy linear function of s1, and an attacker collecting many signatures could average out y and recover s1. The rejection bound is exactly what makes z reveal nothing about s1.
 
 **The Algorithm:**
 
@@ -17691,9 +17729,9 @@ Power2Round demonstration:
   d = 13, so 2^d = 8192
   r =       0: r1 =    0, r0 =     0, r1*2^d + r0 =       0 ✓
   r = 1000000: r1 =  122, r0 =   576, r1*2^d + r0 = 1000000 ✓
-  r = 4000000: r1 =  488, r0 =  1408, r1*2^d + r0 = 4000000 ✓
-  r = 8000000: r1 =  976, r0 =  3008, r1*2^d + r0 = 8000000 ✓
-  r = 8380416: r1 = 1023, r0 =  3200, r1*2^d + r0 = 8380416 ✓
+  r = 4000000: r1 =  488, r0 =  2304, r1*2^d + r0 = 4000000 ✓
+  r = 8000000: r1 =  977, r0 = -3584, r1*2^d + r0 = 8000000 ✓
+  r = 8380416: r1 = 1023, r0 =     0, r1*2^d + r0 = 8380416 ✓
 
 Key sizes (ML-DSA-65):
   Public key:  ~1952 bytes (actual: 1952)
@@ -18431,7 +18469,7 @@ Challenge Derivation:
   │         ▼                               │
   │  ┌──────────────┐                       │
   │  │   SHAKE256   │                       │
-  │  │              │──► c̃ (32 bytes)       │
+  │  │              │──► c̃ (48 bytes)       │
   │  │  H(μ ‖ w₁)   │                       │
   │  └──────────────┘                       │
   │         ▲                               │
@@ -18457,7 +18495,7 @@ The resulting polynomial c has:
 ```
 SampleInBall Algorithm:
   ┌─────────────────────────────────────────────────┐
-  │  Input: c̃ (32-byte seed)                        │
+  │  Input: c̃ (48-byte seed)                        │
   │  Output: c with exactly τ coefficients = ±1     │
   │                                                 │
   │  1. Use SHAKE256(c̃) to generate random bytes    │
@@ -18869,7 +18907,7 @@ Starting signing loop...
   Attempt 4: SUCCESS (hints used: 12)
 
 Signature components:
-  c̃: 7a3f9c21...48b2e5f0 (32 bytes)
+  c̃: 7a3f9c21...48b2e5f0 (48 bytes)
   z: 5 polynomials, coeffs in [-524091, 524091]
      (bound: |z| < 524092)
   h: hint encoding (61 bytes)
@@ -20196,7 +20234,7 @@ This is the same deterministic function used during signing. Given the same c̃,
 Challenge Reconstruction:
 ┌─────────────────────────────────────────────────────────────┐
 │                                                             │
-│  c̃ (32 bytes) ──► SampleInBall ──► c (polynomial)           │
+│  c̃ (48 bytes) ──► SampleInBall ──► c (polynomial)           │
 │                                                             │
 │  Properties of c:                                           │
 │  - Exactly τ non-zero coefficients                          │
@@ -21209,17 +21247,17 @@ End markers: 3 4 4 6 7 7
 Decoded 7 hints
 Verification: PASS (0 errors)
 
-=== Testing t₁ Encoding (4-bit) ===
+=== Testing t₁ Encoding (10-bit) ===
 
-Encoded t₁: 768 bytes
+Encoded t₁: 1920 bytes
 Verification: PASS (0 errors)
 
 === ML-DSA-65 Size Summary ===
 
 Public Key Components:
   ρ (seed):          32 bytes
-  t₁ (high bits):    768 bytes
-  Total PK:          800 bytes
+  t₁ (high bits):    1920 bytes
+  Total PK:          1952 bytes
 
 Secret Key Components:
   ρ (seed):          32 bytes
@@ -21233,7 +21271,7 @@ Secret Key Components:
 Signature Components:
   c̃ (challenge):     48 bytes
   z (response):      3200 bytes
-  h (hints):         77 bytes
+  h (hints):         61 bytes
   Total Signature:   3309 bytes
 
 Comparison:
@@ -23146,6 +23184,8 @@ Test Results: 45/45 passed - ALL TESTS PASSED!
 **Exercise 6.7.1** *(Beginner)*: Why is it important to use test vectors from NIST rather than creating your own? What types of implementation bugs might be missed by self-generated tests?
 
 **Exercise 6.7.2** *(Advanced)*: The reference implementation achieves ~6,000 signatures per second on a modern CPU. If your application needs to sign 100,000 messages per second, what strategies could you employ? Analyze the tradeoffs of each approach.
+
+> **Run it:** `cd source_code/module_06_ml_dsa && make && ./unit_6_7_complete_impl_full` — see `source_code/README.md` for prerequisites.
 
 **Exercise 6.7.3** *(Intermediate)*: Add a function to the test suite that measures and reports the actual average number of rejection sampling iterations. Compare your results with the theoretical expectation of ~4.25 iterations for ML-DSA-65.
 
@@ -26009,7 +26049,13 @@ static void chain(uint8_t *out, const uint8_t *in,
     uint8_t tmp[WOTS_N];
     memcpy(tmp, in, WOTS_N);
 
-    for (uint32_t i = start; i < start + steps && i < WOTS_W; i++) {
+    /* Valid chain positions are 0..w-1; the hash applied at position i moves a
+     * value from position i to i+1, so the address index i ranges over 0..w-2.
+     * A full chain from position 0 needs w-1 applications to reach position w-1.
+     * We apply thash exactly 'steps' times (i = start .. start+steps-1); the
+     * caller guarantees start + steps <= WOTS_W - 1, so no legitimate final
+     * step is ever cut short. */
+    for (uint32_t i = start; i < start + steps && i < WOTS_W - 1; i++) {
         set_hash_addr(addr, i);
         thash(tmp, tmp, pub_seed, addr);
     }
@@ -26211,6 +26257,16 @@ Compress the WOTS+ public key to a single n-byte hash using an unbalanced Merkle
  * L-tree: compress WOTS+ public key to single hash
  *
  * This is an unbalanced binary tree that handles non-power-of-2 inputs.
+ *
+ * NOTE (NOT FIPS-205-CONFORMANT): This toy L-tree combines node pairs with a
+ * raw sha256() call (see below) instead of the address-keyed tweakable hash
+ * thash(addr) used by the rest of this code. As written it therefore OMITS the
+ * pub_seed/address domain separation that FIPS 205 requires for L-tree nodes.
+ * A conformant implementation would feed each child pair through a *two-input*
+ * tweakable hash H(pub_seed, addr, left || right) so that every node is bound to
+ * its tree position. We set the L-tree/chain address fields below to show where
+ * that binding belongs, but the simplified sha256() here ignores them. Do not
+ * use this for anything but illustration.
  */
 void ltree(uint8_t *out, const uint8_t *pk,
            const uint8_t *pub_seed, wots_addr_t *addr)
@@ -26230,9 +26286,14 @@ void ltree(uint8_t *out, const uint8_t *pk,
         /* Process pairs */
         uint32_t new_len = len / 2;
         for (uint32_t i = 0; i < new_len; i++) {
-            /* Hash pair of nodes */
+            /* Hash pair of nodes.
+             * NOT CONFORMANT: a FIPS-205 L-tree would compute
+             *   thash2(pub_seed, addr, left || right)
+             * here so the node is bound to (pub_seed, addr). This toy version
+             * uses a raw sha256() over the concatenated pair and ignores
+             * pub_seed/addr — see the function header note. */
             set_chain_addr(addr, i);
-            /* Simplified: would use proper 2-input thash */
+            (void)pub_seed;  /* unused in this simplified, non-conformant ltree */
             sha256(buf + i * WOTS_N,
                    buf + 2 * i * WOTS_N, 2 * WOTS_N);
         }
@@ -27917,6 +27978,10 @@ If a signature scheme degrades gracefully with reuse instead of completely break
 
 **FORS: Few-Time Signatures**
 
+> **❗ Common Misconception:** SLH-DSA can sign an unlimited number of messages safely, just like ML-DSA.
+>
+> **Reality:** SLH-DSA is built on top of WOTS+ (a one-time scheme) and FORS (a *few-time* scheme). Safety comes from the hypertree randomizing the index so that no individual one-time/few-time key signs more than its tiny budget. Reusing a WOTS+ key, or overusing a FORS key beyond its few-time budget, catastrophically leaks secret material and enables forgery — this is the WOTS+ key-reuse lesson. SLH-DSA's overall message capacity is large only because the hypertree spreads signatures across an astronomically large set of these keys, not because any single key is many-time.
+
 FORS (Forest of Random Subsets) is designed exactly for this:
 - Security degrades slowly with reuse
 - After q uses, security loss is bounded
@@ -29464,6 +29529,21 @@ len = 35
 Signature components:
 - Randomizer: 16 bytes
 - FORS: 33 * (1 + 6) * 16 = 33 * 7 * 16 = 3,696 bytes
+
+> **Run it:** `cd source_code/module_07_slh_dsa && make && ./unit_7_6_slh_dsa_full` — see `source_code/README.md` for prerequisites.
+
+**Where the 17,088 bytes go (SLH-DSA-SHA2-128f):**
+
+The FIPS 205 parameters for this parameter set are n = 16, h = 66, d = 22, a = 6, k = 33, w = 16. WOTS+ with n = 16 and w = 16 gives len1 = 8·n / log2(w) = 128/4 = 32, len2 = 3, so len = len1 + len2 = 35.
+
+| Component | Formula | Arithmetic | Bytes |
+|-----------|---------|------------|-------|
+| Randomizer R | n | 16 | 16 |
+| FORS signature | k · (a + 1) · n | 33 · 7 · 16 | 3,696 |
+| Hypertree (HT) auth | (h + d · len) · n | (66 + 22·35) · 16 = 836 · 16 | 13,376 |
+| **Total** | SIG = R + SIG_FORS + SIG_HT | 16 + 3,696 + 13,376 | **17,088** |
+
+The HT term dominates: it carries `d = 22` layers, each a WOTS+ signature (len · n bytes) plus the Merkle authentication path for that subtree (together the `h` total tree-height contribution). The FORS portion is the few-time signature over the message-derived indices; the randomizer R seeds the message hash. Summing the three components reproduces the 17,088-byte total exactly.
 - Per XMSS: 35 * 16 + 3 * 16 = 560 + 48 = 608 bytes
 - Hypertree: 22 * 608 = 13,376 bytes
 - Total: 16 + 3,696 + 13,376 = 17,088 bytes ✓
@@ -33013,7 +33093,7 @@ NIST IR 8547: Transition to Post-Quantum Cryptography Standards
 |---------------|-----------|-----|--------|
 | X-Wing | X25519 | ML-KEM-768 | IETF draft |
 | Chrome/BoringSSL | X25519 | ML-KEM-768 | Production |
-| OpenSSH 9.0+ | X25519 | sntrup761 | Production |
+| OpenSSH 10.0+ | X25519 | ML-KEM-768 (default); sntrup761 (since 9.0) | Production |
 | AWS KMS | ECDH | ML-KEM | Preview |
 | Signal | X25519 | ML-KEM (Kyber) | Production |
 
@@ -34214,6 +34294,10 @@ After completing this unit, you will be able to:
 #### 8.2.1 X-Wing: The Standard Hybrid KEM
 
 X-Wing is an IETF Internet-Draft hybrid KEM that combines X25519 (classical ECDH) with ML-KEM-768 (post-quantum lattice-based). It is designed for practical deployment in TLS 1.3 and other protocols.
+
+> **❗ Common Misconception:** To combine a classical and a post-quantum KEM, you can just XOR or concatenate the two shared secrets (ss_M ⊕ ss_X, or ss_M || ss_X) and use that as the session key.
+>
+> **Reality:** A secure KEM combiner must bind **both** ciphertexts/public keys into the KDF, not only the raw shared secrets. X-Wing hashes ss_M || ss_X || ct_X || pk_X || label so that the derived secret is tied to the actual transcript. This is what guarantees IND-CCA security holds if *either* component (ML-KEM-768 or X25519) remains unbroken. A bare XOR or concatenation of shared secrets can fail to preserve CCA security under adversarial ciphertext manipulation.
 
 **X-Wing Overview:**
 
@@ -35567,6 +35651,8 @@ cleanup:
 ---
 
 #### Unit 8.2 Summary
+
+> **Run it:** `cd source_code/module_08_hybrid && make && ./unit_8_2_xwing_test_suite` — see `source_code/README.md` for prerequisites.
 
 - X-Wing is the standard hybrid KEM combining X25519 with ML-KEM-768
 - The construction provides IND-CCA security if either component is secure
@@ -37722,9 +37808,12 @@ typedef struct {
     algorithm_id_t pqc_alg;
 
     /* Classical component */
-    uint8_t classical_pk[64];       /* Max size for ECDSA-P384 */
+    uint8_t classical_pk[64];       /* Holds Ed25519/X25519-sized keys (<= 64 B).
+                                       NOTE: an uncompressed ECDSA-P384 point is
+                                       97 bytes (0x04||X||Y), so P-384 keys do NOT
+                                       fit here and are not stored in these buffers. */
     size_t classical_pk_len;
-    uint8_t classical_sk[64];       /* Max size for ECDSA-P384 */
+    uint8_t classical_sk[64];       /* Ed25519/X25519 private key (<= 64 B); see note above */
     size_t classical_sk_len;
 
     /* PQC component */
@@ -38341,8 +38430,8 @@ int build_composite_spki(
     }
 
     /* Build outer AlgorithmIdentifier */
-    const uint8_t *oid = oid_composite_mldsa65_ed25519;
-    size_t oid_len = sizeof(oid_composite_mldsa65_ed25519);
+    const uint8_t *oid = (const uint8_t *)OID_COMPOSITE_MLDSA65_ED25519;
+    size_t oid_len = OID_COMPOSITE_MLDSA65_ED25519_LEN;
 
     asn1_buffer_t alg_content;
     ret = asn1_buffer_init(&alg_content, 32);
@@ -43210,7 +43299,15 @@ int hybrid_kex_process_key_share(hybrid_kex_ctx_t *ctx,
                     return -1;
                 }
 
-                /* Extract peer's X25519 public key and compute shared secret */
+                /* Generate the server's X25519 ephemeral key pair ONCE.
+                 * This public key is what we return in the response share, and
+                 * the matching private key is what we derive x25519_shared from. */
+                if (x25519_keygen(ctx->x25519_public, ctx->x25519_private) != 0) {
+                    return -1;
+                }
+
+                /* Derive the X25519 shared secret exactly once, from our fresh
+                 * ephemeral private key and the peer's X25519 public key. */
                 if (x25519_shared_secret(ctx->x25519_shared,
                                          ctx->x25519_private,
                                          peer_share) != 0) {
@@ -43230,22 +43327,12 @@ int hybrid_kex_process_key_share(hybrid_kex_ctx_t *ctx,
                     return -1;
                 }
 
-                /* Generate response: X25519 public || ML-KEM ciphertext */
+                /* Generate response: X25519 public || ML-KEM ciphertext.
+                 * The X25519 public placed here matches the private key already
+                 * used above to derive x25519_shared (single ephemeral share). */
                 if (response_share && response_share_len) {
                     if (*response_share_len < HYBRID_X25519_MLKEM768_SERVER_SHARE_SIZE) {
                         *response_share_len = HYBRID_X25519_MLKEM768_SERVER_SHARE_SIZE;
-                        return -1;
-                    }
-
-                    /* Generate our X25519 key pair for response */
-                    if (x25519_keygen(ctx->x25519_public, ctx->x25519_private) != 0) {
-                        return -1;
-                    }
-
-                    /* Compute X25519 shared secret with peer's public */
-                    if (x25519_shared_secret(ctx->x25519_shared,
-                                             ctx->x25519_private,
-                                             peer_share) != 0) {
                         return -1;
                     }
 
@@ -43652,7 +43739,8 @@ SSH Protocol Cryptographic Layers
 1. Transport Layer (RFC 4253)
    ├── Key Exchange: Establishes shared secret
    │   └── Currently: curve25519-sha256, ecdh-sha2-nistp256
-   │   └── PQ: sntrup761x25519-sha512 (OpenSSH 9.0+ default)
+   │   └── PQ: mlkem768x25519-sha256 (OpenSSH 10.0+ default),
+   │           sntrup761x25519-sha512 (first PQ KEX, default since 9.0)
    │
    ├── Server Authentication: Proves server identity
    │   └── Currently: ssh-ed25519, ssh-rsa
@@ -43670,7 +43758,7 @@ Priority for PQ Upgrade:
 
 #### 9.2.2 Hybrid Key Exchange Implementation
 
-OpenSSH 9.0+ includes sntrup761x25519-sha512 by default:
+OpenSSH ships two hybrid PQ key exchanges. `sntrup761x25519-sha512@openssh.com` (Streamlined NTRU Prime + X25519) was the **first** PQ KEX and has been the default since OpenSSH 9.0 (2022). As of OpenSSH 10.0 (April 2025), the standardized `mlkem768x25519-sha256` (ML-KEM-768 + X25519) is the **default**. The example below shows the sntrup761 hybrid construction; the same combiner pattern applies to the ML-KEM-768 hybrid:
 
 ```c
 /* ssh_hybrid_kex.c - SSH Hybrid Key Exchange */
@@ -43793,13 +43881,57 @@ int ssh_kex_client_finish(ssh_kex_ctx_t *ctx,
 }
 ```
 
+The companion program `unit_9_2_ssh_kex_demo.c` (in `source_code/module_09_protocols/`) is a self-contained build that negotiates the KEX algorithm and runs a toy hybrid round-trip with a fixed seed, verifying that client and server derive the same session key.
+
+Expected Output:
+
+```text
+SSH KEX negotiation demo (OpenSSH 10.0+ behavior)
+=================================================
+
+Client preference (first few):
+  1. mlkem768x25519-sha256
+  2. sntrup761x25519-sha512@openssh.com
+  3. curve25519-sha256
+  ...
+
+Server accepts:
+  1. mlkem768x25519-sha256
+  2. sntrup761x25519-sha512@openssh.com
+  3. curve25519-sha256
+
+Negotiated: mlkem768x25519-sha256
+Hybrid PQ?  YES
+
+Toy hybrid KEX round-trip (mlkem768x25519-sha256)
+  *** PEDAGOGICAL TOY - NOT REAL CRYPTO ***
+
+[Client] sends X25519_pub=418520942, MLKEM_pk=564337984
+[Server] sends X25519_pub=150713637, KEM_ct=1199797124
+
+  server pq_ss        bc7f247f85409822237e9d7a34b46734ba854e0513650ce655cb788c6c53c42d
+  server K            f6afadc0596f24ef722f02748b9348842aa94f71253b522403c5676f5390fff2
+  client pq_ss        bc7f247f85409822237e9d7a34b46734ba854e0513650ce655cb788c6c53c42d
+  client K            f6afadc0596f24ef722f02748b9348842aa94f71253b522403c5676f5390fff2
+
+  classical (X25519) shares agree : yes
+  PQ (ML-KEM) secrets agree       : yes
+  hybrid session key K agrees     : yes
+
+RESULT: PASS - client and server derived the same KEX secret.
+```
+
+(truncated: explanatory OpenSSH 10.2+ warning-banner note omitted)
+
 #### 9.2.3 SSH Configuration
 
 ```bash
 # /etc/ssh/sshd_config - Post-Quantum Configuration
 
-# Prefer hybrid key exchange (default in OpenSSH 9.0+)
-KexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256
+# Prefer hybrid PQ key exchange.
+# mlkem768x25519-sha256 is the default since OpenSSH 10.0 (April 2025);
+# sntrup761x25519-sha512 was the first PQ KEX (default since OpenSSH 9.0).
+KexAlgorithms mlkem768x25519-sha256,sntrup761x25519-sha512@openssh.com,curve25519-sha256
 
 # Host key algorithms
 HostKeyAlgorithms ssh-ed25519,rsa-sha2-512
@@ -43809,7 +43941,7 @@ Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
 
 # Client configuration (~/.ssh/config)
 Host *
-    KexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256
+    KexAlgorithms mlkem768x25519-sha256,sntrup761x25519-sha512@openssh.com,curve25519-sha256
 ```
 
 #### 9.2.4 Exercise
@@ -43820,35 +43952,40 @@ Host *
 # Check if your SSH connection uses PQ key exchange
 ssh -v hostname 2>&1 | grep -i "kex"
 
-# Expected output should show sntrup761x25519-sha512
+# Expected output should show a hybrid PQ KEX:
+#   mlkem768x25519-sha256 (default on OpenSSH 10.0+), or
+#   sntrup761x25519-sha512 (default on OpenSSH 9.0–9.x)
 ```
 
 **Solution:**
 
 ```bash
-# Step 1: Check your OpenSSH version (need 9.0+)
+# Step 1: Check your OpenSSH version (need 9.0+ for sntrup761,
+#         10.0+ for the mlkem768x25519-sha256 default)
 ssh -V
-# Expected: OpenSSH_9.x or later
+# Expected: OpenSSH_9.x or later (OpenSSH_10.x preferred)
 
 # Step 2: Check negotiated key exchange algorithm
 ssh -v localhost 2>&1 | grep "kex:"
-# Expected output:
-# debug1: kex: algorithm: sntrup761x25519-sha512@openssh.com
+# Expected output (OpenSSH 10.0+):
+# debug1: kex: algorithm: mlkem768x25519-sha256
+# (OpenSSH 9.x will show sntrup761x25519-sha512@openssh.com)
 
 # Step 3: Verify server supports PQ
-ssh -Q kex | grep sntrup
-# Expected: sntrup761x25519-sha512@openssh.com
+ssh -Q kex | grep -E "mlkem768x25519|sntrup"
+# Expected: mlkem768x25519-sha256 and/or sntrup761x25519-sha512@openssh.com
 
 # Step 4: Force PQ-only connection to test
-ssh -o KexAlgorithms=sntrup761x25519-sha512@openssh.com hostname
+ssh -o KexAlgorithms=mlkem768x25519-sha256 hostname
 # If this connects, PQ key exchange is working
+# (on OpenSSH 9.x use sntrup761x25519-sha512@openssh.com instead)
 
 # Step 5: Confirm with verbose output
-ssh -vvv hostname 2>&1 | grep -E "(kex:|KEX|sntrup)"
-# Should show sntrup761 in the negotiated algorithms
+ssh -vvv hostname 2>&1 | grep -E "(kex:|KEX|mlkem|sntrup)"
+# Should show a hybrid PQ KEX in the negotiated algorithms
 ```
 
-If `sntrup761` does not appear, your OpenSSH version may be too old or the algorithm was disabled in configuration. Upgrade to OpenSSH 9.0+ where it is the default.
+If no PQ KEX appears, your OpenSSH version may be too old or the algorithm was disabled in configuration. Upgrade to OpenSSH 10.0+ where `mlkem768x25519-sha256` is the default (sntrup761x25519-sha512 has been default since 9.0).
 
 #### Exercise 9.2.2: SSH Configuration Hardening *(Intermediate)*
 
@@ -43865,7 +44002,8 @@ Create a hardened sshd_config for post-quantum SSH:
 # Post-Quantum Hardened SSH Server Configuration
 
 # Key Exchange: PQ hybrid preferred, classical fallback
-KexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org
+# mlkem768x25519-sha256 is the OpenSSH 10.0+ default; sntrup761x25519-sha512 covers 9.x clients.
+KexAlgorithms mlkem768x25519-sha256,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org
 
 # Host Keys: Ed25519 (quantum-resistant symmetric, short-term risk acceptable)
 HostKey /etc/ssh/ssh_host_ed25519_key
@@ -43891,7 +44029,7 @@ LogLevel VERBOSE
 #!/bin/bash
 # Monitor for non-PQ SSH connections
 LOG="/var/log/auth.log"
-NON_PQ=$(grep "kex:" "$LOG" | grep -v "sntrup761" | tail -20)
+NON_PQ=$(grep "kex:" "$LOG" | grep -vE "mlkem768x25519|sntrup761" | tail -20)
 if [ -n "$NON_PQ" ]; then
     echo "WARNING: Non-PQ SSH connections detected:"
     echo "$NON_PQ"
@@ -43956,10 +44094,10 @@ fi
 echo ""
 echo "=== Phase 2: PQ Readiness Check ==="
 ssh -V 2>&1
-if ssh -Q kex | grep -q sntrup761; then
+if ssh -Q kex | grep -qE "mlkem768x25519|sntrup761"; then
     echo "  PQ key exchange: SUPPORTED"
 else
-    echo "  PQ key exchange: NOT SUPPORTED (upgrade OpenSSH to 9.0+)"
+    echo "  PQ key exchange: NOT SUPPORTED (upgrade OpenSSH to 10.0+ for mlkem768x25519-sha256)"
     exit 1
 fi
 
@@ -43980,7 +44118,7 @@ CONF="/etc/ssh/sshd_config.d/pq-migration.conf"
 echo "  Writing PQ configuration to $CONF"
 cat << 'SSHCONF' | sudo tee "$CONF" > /dev/null
 # PQ Migration Configuration
-KexAlgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256
+KexAlgorithms mlkem768x25519-sha256,sntrup761x25519-sha512@openssh.com,curve25519-sha256
 HostKey /etc/ssh/ssh_host_ed25519_key
 Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
 SSHCONF
@@ -43994,13 +44132,13 @@ sudo sshd -t && echo "  Config valid" || echo "  CONFIG ERROR"
 echo ""
 echo "Migration preparation complete. To apply:"
 echo "  sudo systemctl reload sshd"
-echo "  ssh -o KexAlgorithms=sntrup761x25519-sha512@openssh.com localhost"
+echo "  ssh -o KexAlgorithms=mlkem768x25519-sha256 localhost"
 ```
 
 #### Unit 9.2 Summary
 
 SSH post-quantum integration:
-- sntrup761x25519-sha512 is default in OpenSSH 9.0+
+- `mlkem768x25519-sha256` is the default KEX since OpenSSH 10.0 (April 2025); `sntrup761x25519-sha512` was the first PQ KEX (default since OpenSSH 9.0, 2022)
 - Key exchange is highest priority (protects recorded sessions)
 - PQ host keys coming but not yet in mainline OpenSSH
 
@@ -44107,14 +44245,30 @@ int smime_encrypt_cek_hybrid(const uint8_t *cek, size_t cek_len,
                               const uint8_t *mlkem_public_key, size_t mlkem_key_len,
                               uint8_t *encrypted_cek, size_t *encrypted_len) {
     /*
-     * Hybrid encryption:
-     * 1. Encapsulate to ML-KEM key -> mlkem_ss
-     * 2. Encrypt CEK with RSA-OAEP -> rsa_encrypted
-     * 3. XOR CEK with mlkem_ss, then RSA encrypt
-     * OR
-     * 3. Concatenate: mlkem_ct || rsa_encrypted
+     * INSECURE ILLUSTRATION ONLY — do NOT use in production.
      *
-     * The latter is simpler and recommended for S/MIME.
+     * What this code actually implements:
+     *   1. Encapsulate to the ML-KEM key            -> mlkem_ss (32 bytes)
+     *   2. hybrid_cek = CEK XOR mlkem_ss            (first 32 bytes only)
+     *   3. RSA-OAEP-encrypt hybrid_cek
+     *   4. Output = mlkem_ct || rsa_oaep(hybrid_cek)
+     *
+     * Why this is NOT secure: the CEK is masked with the raw ML-KEM shared
+     * secret and then wrapped under RSA. If RSA-OAEP is broken, the attacker
+     * recovers hybrid_cek and (since they hold mlkem_ct) can run their own
+     * decapsulation to obtain mlkem_ss and unmask the CEK. Conversely, masking
+     * with a raw KEM output and feeding it through a single wrap does not give
+     * an independent fallback. Security does NOT hold if EITHER primitive is
+     * broken — the whole point of a hybrid construction.
+     *
+     * Production S/MIME MUST instead wrap the CEK INDEPENDENTLY per recipient
+     * algorithm so that secrecy survives if EITHER primitive is unbroken:
+     *   - a KeyTransRecipientInfo carrying the RSA-OAEP-wrapped CEK, AND
+     *   - a KEMRecipientInfo (per draft-ietf-lamps-cms-kemri) carrying the
+     *     ML-KEM-wrapped CEK;
+     * or derive a KEK = KDF(KEM shared secret) and AES-Key-Wrap the CEK under
+     * that KEK. This code is a pedagogical sketch of the *shape* of a hybrid
+     * wrap, not a deployable scheme.
      */
 
     /* Allocate output buffer */
@@ -44648,6 +44802,35 @@ void ikev2_ke_cleanup(ikev2_ke_t *ke) {
     free(ke->public_value);
     memset(ke, 0, sizeof(ikev2_ke_t));
 }
+```
+
+The companion program `unit_9_4_ipsec_ike_mlkem.c` (in `source_code/module_09_protocols/`) is self-contained and prints the IKEv2 hybrid PQ transform proposals it would offer, including the ADDKE1 additional key-exchange group used to carry ML-KEM alongside a classical Diffie-Hellman group:
+
+Expected Output:
+
+```text
+IKEv2 hybrid PQ transform proposals
+(draft-ietf-ipsecme-ikev2-mlkem)
+
+Proposal: Hybrid ML-KEM-768 + X25519
+  ENCR:     AES_GCM_16 (256)
+  PRF:      HMAC_SHA2_256
+  INTEG:    HMAC_SHA2_256_128
+  DH:       group 31 (classical)
+  ADDKE1:   group 36 (ML-KEM) -- hybrid PQ exchange
+
+Proposal: Hybrid ML-KEM-1024 + P-384 (CNSA 2.0-compatible)
+  ENCR:     AES_GCM_16 (256)
+  PRF:      HMAC_SHA2_384
+  INTEG:    HMAC_SHA2_384_192
+  DH:       group 29 (classical)
+  ADDKE1:   group 37 (ML-KEM) -- hybrid PQ exchange
+
+Proposal: Classical-only (fallback)
+  ENCR:     AES_GCM_16 (128)
+  PRF:      HMAC_SHA2_256
+  INTEG:    HMAC_SHA2_256_128
+  DH:       group 31 (classical)
 ```
 
 #### 9.4.3 strongSwan Configuration
@@ -45414,6 +45597,39 @@ SCTs are the CT mechanism that proves a certificate was submitted to a log. Duri
 
 ---
 
+### Unit 9.6: DNSSEC and DNS with Post-Quantum Signatures
+
+**Prerequisites:** Module 6 (ML-DSA), Module 7 (SLH-DSA)
+
+DNSSEC adds origin authentication and integrity to DNS by signing resource record sets (RRsets). Migrating it to post-quantum signatures is uniquely hard because DNS is one of the most size-constrained protocols still in wide use.
+
+**The DNSSEC size problem:**
+
+- Classic DNS over UDP caps responses at **512 bytes**; EDNS0 raises the advertised buffer (commonly 1232 bytes in practice to avoid IP fragmentation), but responses beyond that trigger **TCP fallback** via the truncation (TC) bit.
+- DNSSEC responses already carry signatures (RRSIG), keys (DNSKEY), and denial-of-existence records (NSEC/NSEC3). They are frequently the largest DNS messages on the wire even with classical ECDSA/Ed25519 signatures (64–96 bytes each).
+- Post-quantum signatures are far larger: ML-DSA-65 is ~3,309 bytes per signature and SLH-DSA-SHA2-128f is ~17,088 bytes. A single PQ-signed RRset can dwarf the entire classical response.
+
+**Why this strains DNS:**
+
+- **Fragmentation:** UDP responses larger than the path MTU fragment at the IP layer. Fragmented DNS is unreliable (middleboxes drop fragments) and is itself a security concern.
+- **TCP fallback:** Oversized responses force a retry over TCP, adding round-trips and connection state that authoritative servers and resolvers are not provisioned to handle at DNS scale.
+- **Amplification:** Large signed responses worsen DNS as a DDoS reflection/amplification vector — a small query eliciting a multi-kilobyte answer is exactly what attackers abuse.
+
+**Current IETF direction (as of 2026):**
+
+- Work in the IETF **dnsop** working group is exploring how to make DNSSEC viable with post-quantum primitives. No standard PQ DNSSEC algorithm is deployed yet.
+- Approaches under discussion include **Merkle Tree Certificates** and other hash-based / compact-signature techniques (see also draft-sheth-pqc-dnssec-strategy, which proposes SLH-DSA in Merkle Tree Ladder mode), selective use of smaller PQ signatures, and protocol changes to reduce how often full signatures must be transmitted.
+- Where hash-based signatures are considered, **SLH-DSA** is attractive for its conservative security but painful for its size; lattice signatures (ML-DSA) are smaller but still large relative to DNS norms. The trade-off space is unresolved.
+
+**What to do today:**
+
+- **Keep DNSSEC on classical algorithms** (ECDSA P-256 / Ed25519) for now; there is no production-ready PQ DNSSEC profile to migrate to.
+- **Monitor IETF dnsop** drafts on post-quantum DNSSEC and Merkle Tree Certificates.
+- **Plan for larger responses:** ensure resolvers and authoritative servers handle EDNS0 sizing sensibly and support reliable **TCP fallback**; test infrastructure against larger answer sizes ahead of any future PQ rollout.
+- Treat DNSSEC's quantum exposure as lower urgency than confidentiality protocols: signatures protect integrity/authenticity, which is not subject to "harvest now, decrypt later" — a forged record requires a quantum computer *at the time of attack*, not retroactively.
+
+---
+
 ## Module 9 Summary: Protocol Integration
 
 Module 9 covered post-quantum integration across major security protocols:
@@ -45424,7 +45640,7 @@ Module 9 covered post-quantum integration across major security protocols:
 - Certificate chain optimization
 
 **Unit 9.2: SSH**
-- sntrup761x25519-sha512 default in OpenSSH 9.0+
+- `mlkem768x25519-sha256` default since OpenSSH 10.0; `sntrup761x25519-sha512` the first PQ KEX (default since 9.0)
 - Host key rotation strategies
 - Configuration best practices
 
@@ -45467,7 +45683,7 @@ When deploying post-quantum cryptography in production, library selection signif
 
 **Implementation Notes:**
 
-- **liboqs**: Open Quantum Safe project providing reference implementations. Excellent for prototyping and testing but not recommended as sole production dependency. Integrates with OpenSSL via oqs-provider.
+- **liboqs**: Open Quantum Safe project providing reference implementations. Excellent for prototyping and testing but not recommended as sole production dependency. Integrates with OpenSSL via oqs-provider. Note the API churn as the library tracks the finalized FIPS standards: the pre-standardization **Dilithium** API was removed in liboqs 0.15.0 (Nov 2025) — migrate to ML-DSA (FIPS 204) — and **SPHINCS+** is slated for removal in 0.16.0 in favor of the FIPS 205 SLH-DSA implementation (from `pq-code-package/slhdsa-c`). Pin a liboqs version and read its release notes before upgrading.
 
 - **BoringSSL**: Google's production library focused on TLS. Supports ML-KEM and ML-DSA (added January 2026 with X.509 and FIPS module integration). X25519+ML-KEM-768 hybrid is the recommended configuration for Chrome and Google services.
 
@@ -45826,7 +46042,7 @@ OQS_KEM_free(kem);
 
 2. **FALCON is NTRU-based:** NIST's alternate signature standard FN-DSA (FALCON) uses NTRU lattices for its trapdoor construction. Understanding NTRU helps explain why FALCON can produce compact signatures but requires careful floating-point arithmetic.
 
-3. **sntrup761 is deployed in OpenSSH:** Since OpenSSH 9.0 (2022), the default key exchange uses `sntrup761x25519-sha512@openssh.com` — a hybrid of NTRU Prime and X25519.
+3. **PQ key exchange is deployed in OpenSSH:** Since OpenSSH 9.0 (2022), `sntrup761x25519-sha512@openssh.com` — a hybrid of NTRU Prime and X25519 — was the first PQ default. As of OpenSSH 10.0 (April 2025), the standardized `mlkem768x25519-sha256` (ML-KEM-768 + X25519) is the default.
 
 **The NTRU Hard Problem:**
 
@@ -45851,7 +46067,7 @@ In NTRU, the public key is h = g/f in the polynomial ring Z_q[X]/(X^n - 1), wher
 
 OpenSSH chose sntrup761 (pre-dating FIPS 203) as a conservative choice: NTRU Prime's design intentionally avoids the algebraic structure that some researchers worry could be exploited. The hybrid with X25519 ensures security against both classical and quantum attacks.
 
-**Migration path:** As ML-KEM becomes widely deployed, OpenSSH is expected to add ML-KEM-768 as a key exchange option. The hybrid approach (sntrup761+X25519 or ML-KEM-768+X25519) will likely persist during the transition period.
+**Migration path:** OpenSSH added the standardized ML-KEM-768 hybrid (`mlkem768x25519-sha256`) and made it the default in OpenSSH 10.0 (April 2025), alongside the original sntrup761 hybrid. The hybrid approach (sntrup761+X25519 or ML-KEM-768+X25519) will likely persist during the transition period.
 
 **NTRU vs ML-KEM comparison:**
 
@@ -46838,6 +47054,47 @@ void agility_cleanup(agility_context_t *ctx) {
     free(ctx->preferred_kem);
     memset(ctx, 0, sizeof(agility_context_t));
 }
+```
+
+The companion program `unit_10_1_crypto_agility.c` (in `source_code/module_10_future/`) is a self-contained distillation of this pattern: a small algorithm registry queried by capability policy, plus a swap-out scenario showing how to fail over to an alternate algorithm with no application changes.
+
+Expected Output:
+
+```text
+Cryptographic Agility Registry Demo
+====================================
+
+Registry contents:
+   1) ML-KEM-768
+   2) ML-DSA-65
+   3) SLH-DSA-128s
+   4) X-Wing
+   5) FN-DSA-512
+   6) HQC-128
+
+-- Policy: need FIPS 140-3 KEM --
+  Algorithm:    ML-KEM-768 (id=1)
+  Public key:   1184 bytes
+  Secret key:   2400 bytes
+  Sig/ct:       1088 bytes
+  Capabilities: KEM FIPS140-3 
+
+-- Policy: need FIPS 140-3 signature --
+  Algorithm:    ML-DSA-65 (id=2)
+  Public key:   1952 bytes
+  Secret key:   4032 bytes
+  Sig/ct:       3309 bytes
+  Capabilities: SIGN FIPS140-3 
+
+-- Policy: need hybrid KEM --
+  Algorithm:    X-Wing (id=4)
+  Public key:   1216 bytes
+  Secret key:   2432 bytes
+  Sig/ct:       1120 bytes
+  Capabilities: KEM HYBRID 
+
+Swap-out scenario: if ML-KEM-768 is broken, reorder the registry
+so X-Wing or HQC-128 is selected first — no application changes needed.
 ```
 
 #### 10.3.3 Configuration-Driven Agility
@@ -47900,30 +48157,32 @@ Jasmin targets the gap between high-level specifications and optimized assembly.
 
 ---
 
-### Unit 10.5: NIST Additional Signatures — Round 2 Status
+### Unit 10.5: NIST Additional Signatures — Round 2 Concluded
 
-After finalizing ML-DSA (FIPS 204) and SLH-DSA (FIPS 205), NIST opened a separate standardization track for **additional digital signature algorithms**. The goal is algorithmic diversity: different mathematical assumptions, different performance profiles, different signature-versus-pubkey trade-offs. Round 1 closed October 2023; Round 2 was announced October 2024 and continues through 2026.
+After finalizing ML-DSA (FIPS 204) and SLH-DSA (FIPS 205), NIST opened a separate standardization track for **additional digital signature algorithms**. The goal is algorithmic diversity: different mathematical assumptions, different performance profiles, different signature-versus-pubkey trade-offs. Round 1 closed October 2023; Round 2 was announced October 2024.
+
+In May 2026, NIST published **NIST IR 8610**, the status report concluding Round 2 of the Additional Digital Signatures on-ramp. Of the 14 second-round candidates, **nine advanced to Round 3** — FAEST, HAWK, MAYO, MQOM, QR-UOV, SDitH, SNOVA, SQIsign, and UOV — spanning the isogeny (SQIsign), lattice (HAWK), MPC-in-the-Head (FAEST, MQOM, SDitH), and multivariate (MAYO, QR-UOV, SNOVA, UOV) families. **Five candidates were eliminated:** CROSS, LESS, Mirath, PERK, and RYDE. Round-3 tweaked specifications are due to NIST by 14 August 2026, and the third round is expected to last roughly two years (the 7th NIST PQC Standardization Conference is planned for 2027).
 
 #### 10.5.1 Round 2 Candidates (14)
 
-As of April 2026, the 14 Round 2 finalists are:
+All 14 candidates that competed in Round 2 are listed below, with their Round-3 outcome per NIST IR 8610 (2026) — advanced ✅ or eliminated ❌:
 
-| Candidate | Family | Notable feature |
-|-----------|--------|-----------------|
-| **CROSS** | Code-based (restricted errors) | Fast signing; moderate signature size |
-| **FAEST** | Symmetric-key (VOLE-in-the-head) | Very small keys; signatures ~5 KB |
-| **HAWK** | Lattice (module-LIP) | **Last lattice method standing** in Round 2 — Falcon-class sizes, simpler sampling than FN-DSA. Based on Lattice Isomorphism Problem, not NTRU. |
-| **LESS** | Code-based (permutation equivalence) | Small public keys |
-| **MAYO** | Multivariate (UOV variant) | Very fast verify; small sigs |
-| **Mirath** | Multivariate (merger of MIRA + MiRitH) | Consolidated MPCitH-MinRank candidate |
-| **MQOM** | Multivariate (MQ-over-any-field) | General MQ framework |
-| **PERK** | Symmetric (permuted kernel) | Zero-knowledge style |
-| **QR-UOV** | Multivariate (UOV over quotient ring) | Smaller pubkey than standard UOV |
-| **RYDE** | Code-based (rank metric) | Rank-syndrome decoding |
-| **SDitH** | Code-based (syndrome-decoding in-the-head) | MPCitH framework |
-| **SNOVA** | Multivariate | Compact UOV variant |
-| **SQIsign** | Isogeny | Smallest PQ signatures (~200 bytes); slowest signing |
-| **UOV** | Multivariate (original Oil-and-Vinegar) | The "baseline" MQ candidate |
+| Candidate | Family | Round 3? | Notable feature |
+|-----------|--------|:--------:|-----------------|
+| **CROSS** | Code-based (restricted errors) | ❌ | Fast signing; moderate signature size |
+| **FAEST** | Symmetric-key (VOLE-in-the-head) | ✅ | Very small keys; signatures ~5 KB |
+| **HAWK** | Lattice (module-LIP) | ✅ | **Last lattice method standing** — Falcon-class sizes, simpler sampling than FN-DSA. Based on the Lattice Isomorphism Problem, not NTRU. |
+| **LESS** | Code-based (permutation equivalence) | ❌ | Small public keys |
+| **MAYO** | Multivariate (UOV variant) | ✅ | Very fast verify; small sigs |
+| **Mirath** | Multivariate (merger of MIRA + MiRitH) | ❌ | Consolidated MPCitH-MinRank candidate |
+| **MQOM** | Multivariate (MQ-over-any-field) | ✅ | General MQ framework |
+| **PERK** | Symmetric (permuted kernel) | ❌ | Zero-knowledge style |
+| **QR-UOV** | Multivariate (UOV over quotient ring) | ✅ | Smaller pubkey than standard UOV |
+| **RYDE** | Code-based (rank metric) | ❌ | Rank-syndrome decoding |
+| **SDitH** | Code-based (syndrome-decoding in-the-head) | ✅ | MPCitH framework |
+| **SNOVA** | Multivariate | ✅ | Compact UOV variant |
+| **SQIsign** | Isogeny | ✅ | Smallest PQ signatures (~200 bytes); slowest signing |
+| **UOV** | Multivariate (original Oil-and-Vinegar) | ✅ | The "baseline" MQ candidate |
 
 **Key dynamics**:
 - **Lattice diversity is deliberately constrained** — NIST did not want a second lattice primary to avoid single-family risk. HAWK is the sole remaining lattice option and would be adopted only if all other candidates fail.
@@ -47935,7 +48194,8 @@ As of April 2026, the 14 Round 2 finalists are:
 
 | Milestone | Expected |
 |-----------|----------|
-| Round 3 down-select | Expected 2026 (timing TBD by NIST) |
+| Round 2 conclusion (NIST IR 8610) | 14 May 2026 — 9 of 14 advanced |
+| Round 3 analysis | 2026 onward (~2 years; specs due 14 Aug 2026) |
 | Draft standards | 2026–2027 |
 | Final publication (FIPS 208+?) | 2027 or later |
 
@@ -53938,6 +54198,8 @@ FALCON is another NIST-selected lattice-based signature scheme (draft FIPS 206, 
 - When signature size is critical
 - When implementation complexity is acceptable
 
+> Note: FN-DSA is not yet usable for CNSA 2.0 or FIPS 140-3 compliance (FIPS 206 is still draft as of 2026) — standardize production signers on ML-DSA today and treat FN-DSA as a future bandwidth optimization for certificate chains once FIPS 206 finalizes.
+
 ```c
 // Using FALCON via liboqs
 #include <stdio.h>
@@ -54851,7 +55113,7 @@ Quick lookup of key terms and where they are defined or discussed in depth. Use 
 | Decomposition (HighBits/LowBits, ML-DSA) | §6.1, §6.5 |
 | Digital signature (definition) | §5.1 |
 | Discrete Gaussian | §3.2, §10.1 (FALCON) |
-| DNSSEC and PQC | §9.5  |
+| DNSSEC and PQC | §9.6 |
 | DPA (Differential Power Analysis) | §7.7.2, Appendix A.3 |
 
 **E–F**
@@ -54999,6 +55261,8 @@ This section provides full bibliographic details for works referenced throughout
 [SP800-227] National Institute of Standards and Technology, "Recommendations for Key-Encapsulation Mechanisms," *NIST Special Publication 800-227*, 2025. https://csrc.nist.gov/pubs/sp/800/227/ipd
 
 [IR8547] National Institute of Standards and Technology, "Transition to Post-Quantum Cryptography Standards," *NIST Internal Report 8547*, 2024. https://csrc.nist.gov/pubs/ir/8547/ipd
+
+[NISTIR8610] NIST, "Status Report on the Second Round of the Additional Digital Signature Schemes for the NIST Post-Quantum Cryptography Standardization Process," NIST IR 8610, 2026. https://csrc.nist.gov/pubs/ir/8610/final
 
 [SP800-208] National Institute of Standards and Technology, "Recommendation for Stateful Hash-Based Signature Schemes," *NIST Special Publication 800-208*, 2020. https://csrc.nist.gov/pubs/sp/800/208/final
 
@@ -55435,10 +55699,11 @@ Live document. Reset for the public edition; ongoing changes will accumulate fro
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | Apr 2026 | Initial public release. |
+| 1.1 | Jun 2026 | Currency re-verification against primary sources. Confirmed still-current: NIST IR 8610 Round-2 outcome (9 advance / 5 eliminate), FIPS 206/FN-DSA draft timeline (submitted Aug 2025, final late 2026/early 2027), FIPS 207/HQC (draft early 2026, final 2027), OpenSSH 10.0 default (`mlkem768x25519-sha256`), liboqs 0.15.0, Cloudflare ~57% browser-initiated PQ key shares, IBM/Google quantum-hardware roadmaps. Added: liboqs API churn note (Dilithium removed in 0.15, SPHINCS+ slated for removal in 0.16 → SLH-DSA). Point-in-time vendor/KMS/IETF snapshots retain their "as of April 2026 — verify before relying" markers and were not individually re-confirmed. |
 
 ---
 
-*Document Version: 1.0*
-*Last Updated: April 2026*
+*Document Version: 1.1*
+*Last Updated: June 2026*
 
 **Good luck on your post-quantum cryptography journey!**

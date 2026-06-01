@@ -1,0 +1,94 @@
+=== Fiat-Shamir Transform: ID Protocol → Signature ===
+Parameters: P=997, Q=83, G=9 (NOT SECURE)
+
+Key Generation:
+  Secret key: x = 35
+  Public key: y = g^x = 108
+
+=== Interactive Schnorr ID Protocol ===
+
+Round 1 - Prover commits:
+  k = 1 (secret nonce)
+  a = g^k = 9
+  Prover → Verifier: a = 9
+
+Round 2 - Verifier challenges:
+  c = 58 (random)
+  Verifier → Prover: c = 58
+
+Round 3 - Prover responds:
+  z = k + c*x = 1 + 58*35 = 39 (mod 83)
+  Prover → Verifier: z = 39
+
+Verification:
+  g^z = 718
+  a * y^c = 9 * 108^58 = 718
+  Result: ACCEPT ✓
+
+=== Fiat-Shamir Signature (Non-Interactive) ===
+
+Message: "Hello, Fiat-Shamir!"
+
+Signing:
+  R = g^k = 108
+  c = H(R || pk || m) = 35
+  s = k + c*x = 15
+  Signature: (R=108, s=15)
+
+Verification:
+  Recompute c = H(R || pk || m) = 35
+  Check g^s = R * y^c:
+    g^s = 907
+    R * y^c = 907
+  Result: VALID ✓
+
+=== Special Soundness Demonstration ===
+
+Goal: Extract secret key from two transcripts with same commitment
+
+Transcript 1: (a=994, c=7, z=38)
+  Equation: z1 = k + c1*x → 38 = 42 + 7*x
+
+Transcript 2: (a=994, c=13, z=82)
+  Equation: z2 = k + c2*x → 82 = 42 + 13*x
+
+Extraction:
+  z1 - z2 = (c1 - c2) * x
+  38 - 82 = (7 - 13) * x (mod 83)
+  39 = 77 * x (mod 83)
+  x = 39 * 77^(-1) = 39 * 69 = 35 (mod 83)
+
+Extracted secret: x = 35
+Actual secret:    x = 35
+Extraction SUCCEEDED!
+
+=== HVZK Simulation Demonstration ===
+
+Goal: Create valid-looking transcript without knowing sk
+
+Simulation (no secret key used!):
+  Choose random z = 62
+  Choose random c = 13
+  Compute a = g^z * y^(-c) = 203 * 108^(-13) = 501
+
+Simulated transcript: (a=501, c=13, z=62)
+
+Verification of simulated transcript:
+  g^z = 203
+  a * y^c = 203
+  Result: VALID ✓
+
+This proves zero-knowledge: transcripts can be faked!
+Verifier learns nothing about sk from the protocol.
+
+=== Summary ===
+
+1. Interactive ID Protocol: 3 rounds (commit → challenge → respond)
+2. Fiat-Shamir Transform: c = H(a || m) makes it non-interactive
+3. Special Soundness: Two transcripts reveal secret
+4. HVZK: Transcripts can be simulated without secret
+5. Security: ROM proof from special soundness + HVZK
+
+==============================================
+Overall result: PASS (all checks behaved as expected)
+==============================================

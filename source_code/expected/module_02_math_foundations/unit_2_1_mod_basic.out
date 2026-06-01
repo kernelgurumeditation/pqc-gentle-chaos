@@ -1,0 +1,8 @@
+(17 × 23 + 45) mod 97 = 48
+
+Centered representatives mod 7:
+-15 -> standard: 6, centered: -1
+-8 -> standard: 6, centered: -1
+6 -> standard: 6, centered: -1
+13 -> standard: 6, centered: -1
+20 -> standard: 6, centered: -1

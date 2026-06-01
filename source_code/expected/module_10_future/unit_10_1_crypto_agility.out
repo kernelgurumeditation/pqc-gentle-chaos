@@ -1,0 +1,34 @@
+Cryptographic Agility Registry Demo
+====================================
+
+Registry contents:
+   1) ML-KEM-768
+   2) ML-DSA-65
+   3) SLH-DSA-128s
+   4) X-Wing
+   5) FN-DSA-512
+   6) HQC-128
+
+-- Policy: need FIPS 140-3 KEM --
+  Algorithm:    ML-KEM-768 (id=1)
+  Public key:   1184 bytes
+  Secret key:   2400 bytes
+  Sig/ct:       1088 bytes
+  Capabilities: KEM FIPS140-3 
+
+-- Policy: need FIPS 140-3 signature --
+  Algorithm:    ML-DSA-65 (id=2)
+  Public key:   1952 bytes
+  Secret key:   4032 bytes
+  Sig/ct:       3309 bytes
+  Capabilities: SIGN FIPS140-3 
+
+-- Policy: need hybrid KEM --
+  Algorithm:    X-Wing (id=4)
+  Public key:   1216 bytes
+  Secret key:   2432 bytes
+  Sig/ct:       1120 bytes
+  Capabilities: KEM HYBRID 
+
+Swap-out scenario: if ML-KEM-768 is broken, reorder the registry
+so X-Wing or HQC-128 is selected first — no application changes needed.

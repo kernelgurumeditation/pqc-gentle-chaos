@@ -64,8 +64,16 @@ int main(void) {
            a, inv, a * inv, (a * inv) % m, m);
 
     // Test with non-coprime values
-    printf("\n6⁻¹ mod 9 = %d (should be -1, no inverse)\n",
-           mod_inverse(6, 9));
+    int32_t no_inv = mod_inverse(6, 9);
+    printf("\n6⁻¹ mod 9 = %d (should be -1, no inverse)\n", no_inv);
 
-    return 0;
+    // Known-answer checks: gcd(17,97)=1, Bezout identity holds,
+    // 17 has an inverse mod 97, and 6 has none mod 9.
+    int ok = (gcd == 1) && (a * x + m * y == gcd) &&
+             (inv >= 0) && ((a * inv) % m == 1) && (no_inv == -1);
+    printf(ok ? "[PASS] extended GCD and modular inverse checks hold\n"
+              : "[FAIL] extended GCD / inverse check failed\n");
+
+    /* Nonzero exit on failure so the test harness can detect it. */
+    return ok ? 0 : 1;
 }

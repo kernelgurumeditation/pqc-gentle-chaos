@@ -1,0 +1,61 @@
+ML-DSA-65 Test Suite Demo
+=========================
+Note: This demonstrates test methodology.
+      Full tests require complete implementation.
+
+=== Field Arithmetic Tests ===
+  [PASS] mod_q(0) == 0
+  [PASS] mod_q(q) == 0
+  [PASS] mod_q(q+1) == 1
+  [PASS] mod_q(-1) == q-1
+  [PASS] centered_mod(0) == 0
+  [PASS] centered_mod((q-1)/2) == (q-1)/2
+  [PASS] centered_mod((q-1)/2+1) is negative
+  [PASS] Montgomery reduction in range
+
+=== Decomposition Tests ===
+  [PASS] decompose/recompose identity
+  [PASS] decomposition bounds satisfied
+
+=== Hint Function Tests ===
+  [PASS] make_hint returns 0 or 1
+  [PASS] make_hint mostly 0 for small z
+
+=== Parameter Consistency Tests ===
+  [PASS] q is odd prime
+  [PASS] 2n divides q-1 (NTT requirement)
+  [PASS] gamma1 < q/2
+  [PASS] gamma2 < q/2
+  [PASS] q-1 = 2*gamma2*m
+  [PASS] beta = tau * eta (approx)
+  [PASS] gamma1 > beta (for z bounds)
+
+=== Polynomial Operations Tests ===
+  [PASS] polynomial addition correct
+  [PASS] polynomial subtraction correct
+
+=== Norm Bound Tests ===
+  [PASS] infinity norm computed correctly
+  [PASS] coefficients in [-eta, eta]
+  [PASS] z coefficients in valid range
+
+=== Size Calculation Tests ===
+  [PASS] public key size matches spec (1952 bytes)
+  [PASS] secret key size matches spec (4032 bytes)
+  [PASS] signature size matches spec (3309 bytes)
+
+  Calculated sizes:
+    Public key:  1952 bytes (spec: 1952)
+    Secret key:  4032 bytes (spec: 4032)
+    Signature:   3309 bytes (spec: 3309)
+
+=========================
+Test Results: 27/27 passed - ALL TESTS PASSED!
+
+Full test suite would include:
+  - NTT/INTT correctness tests
+  - Sampling distribution tests
+  - Encoding roundtrip tests
+  - Sign/verify integration tests
+  - Known answer tests (KATs)
+  - Stress tests with many signatures

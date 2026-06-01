@@ -1,0 +1,5 @@
+Computing X^128 × X^128 in Z_3329[X]/(X^256 + 1):
+
+Result: X^256 ≡ 3328 ≡ -1 (mod 3329)
+
+VERIFIED: X^256 ≡ -1 in this ring!

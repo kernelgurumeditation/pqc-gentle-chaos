@@ -1,0 +1,6 @@
+3^20 mod 97 = 91
+
+17^128 mod 3329 = 3328 (should be 3328 = -1 mod 3329)
+17^256 mod 3329 = 1 (should be 1)
+
+[PASS] modular exponentiation known-answer checks hold

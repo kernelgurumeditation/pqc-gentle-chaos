@@ -1,0 +1,5 @@
+Testing Barrett reduction for all a in [0, 11082241)...
+Progress: 0.0% (0 / 11082241)Progress: 9.0% (1000000 / 11082241)Progress: 18.0% (2000000 / 11082241)Progress: 27.1% (3000000 / 11082241)Progress: 36.1% (4000000 / 11082241)Progress: 45.1% (5000000 / 11082241)Progress: 54.1% (6000000 / 11082241)Progress: 63.2% (7000000 / 11082241)Progress: 72.2% (8000000 / 11082241)Progress: 81.2% (9000000 / 11082241)Progress: 90.2% (10000000 / 11082241)Progress: 99.3% (11000000 / 11082241)
+
+Test complete. 0 errors found out of 11082241 values.
+SUCCESS: Barrett reduction is correct for all inputs!

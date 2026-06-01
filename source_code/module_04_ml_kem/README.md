@@ -9,7 +9,8 @@ This module covers ML-KEM (Module-Lattice Key Encapsulation Mechanism), the NIST
 | File | Description | Key Concepts |
 |------|-------------|--------------|
 | unit_4_1_kem_concepts.c | KEM fundamentals | Encapsulation vs encryption, shared secrets |
-| unit_4_2_kpke.c | K-PKE construction | Underlying public key encryption |
+| unit_4_2_kpke.c | K-PKE construction (toy parameters) | Underlying public key encryption |
+| unit_4_2_kpke_full.c | K-PKE with ML-KEM-768-like parameters | Realistic sizes, ciphertext malleability demo |
 | unit_4_3_fo_transform.c | Fujisaki-Okamoto transform | CCA security from CPA security |
 
 ## Building
@@ -24,8 +25,11 @@ make
 # Run KEM concepts demonstration
 ./unit_4_1_kem_concepts
 
-# Run K-PKE encryption/decryption
+# Run K-PKE encryption/decryption (toy parameters)
 ./unit_4_2_kpke
+
+# Run K-PKE with ML-KEM-768-like parameters (malleability demo)
+./unit_4_2_kpke_full
 
 # Run FO transform demonstration
 ./unit_4_3_fo_transform

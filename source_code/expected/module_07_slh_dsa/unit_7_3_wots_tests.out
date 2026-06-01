@@ -1,0 +1,53 @@
+=== WOTS+ Demonstration ===
+
+Testing base-w conversion...
+  Input: 0xAB 0xCD
+  Output (base-16): {10, 11, 12, 13}
+  Base-w conversion PASSED!
+Testing chain composition...
+  Chain composition PASSED!
+    chain(x, 0, 5) == chain(chain(x, 0, 3), 3, 2)
+Testing WOTS+ basic sign/verify...
+  Basic sign/verify PASSED!
+Testing WOTS+ wrong message detection...
+  Wrong message detection PASSED!
+Testing WOTS+ checksum security...
+  Checksum mechanism:
+    - Message chunks: values 0 to 15
+    - Checksum = sum of (W-1 - chunk_i)
+    - If attacker increases a chunk, checksum DECREASES
+    - But signature allows only INCREASING chain position
+    - Therefore: forgery is computationally infeasible
+
+  Example: chunks = {5, 10, 3, 8}
+    Checksum = (15-5)+(15-10)+(15-3)+(15-8) = 34
+
+  If attacker changes chunks[0] from 5 to 6:
+    New checksum = 33 (was 34)
+    Checksum DECREASED - but attacker can only INCREASE!
+  Checksum security test PASSED!
+
+WOTS+ Parameters (demo values):
+  n (hash size):     16 bytes
+  w (Winternitz):    16
+  len1 (msg chunks): 4
+  len2 (csum chunks):2
+  len (total chains):6
+
+Sizes:
+  Public key: 96 bytes
+  Signature:  96 bytes
+
+Comparison (with n=32, w=16):
+  Lamport signature: 8192 bytes
+  WOTS+ signature:   2144 bytes (len=67)
+  Reduction:         ~3.8x smaller
+
+=== Demo complete! ===
+
+=== Self-test verdict ===
+  base-w conversion        : PASS
+  chain composition        : PASS
+  basic sign/verify        : PASS
+  wrong message rejected   : PASS
+Result: PASS

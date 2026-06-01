@@ -1,0 +1,59 @@
+Lamport One-Time Signature Demonstration
+=========================================
+
+Generating Lamport key pair...
+  Secret key size: 16384 bytes
+  Public key size: 16384 bytes
+
+Message: "Hello, hash-based signatures!"
+
+Signing message (digest bits shown)...
+  First 16 bits: 1101101000010011...
+  Signature size: 8192 bytes
+Verifying signature...
+  All 256 bits verified successfully
+
+Verification result: VALID
+
+Testing with wrong message...
+Verifying signature...
+  Verification FAILED at bit 0
+Wrong message result: INVALID (expected INVALID)
+
+=== One-Time Vulnerability Demonstration ===
+
+Generating Lamport key pair...
+  Secret key size: 16384 bytes
+  Public key size: 16384 bytes
+
+Signing first message: "First message"
+Signing message (digest bits shown)...
+  First 16 bits: 1011111111011100...
+  Signature size: 8192 bytes
+
+Signing second message: "Second message"
+Signing message (digest bits shown)...
+  First 16 bits: 0001010011001011...
+  Signature size: 8192 bytes
+
+=== Security Analysis ===
+Bits where messages differ: 122 / 256
+For these bits, BOTH sk0 and sk1 are now revealed!
+Attacker can forge signatures for 2^122 different messages
+
+This is why Lamport signatures are ONE-TIME ONLY!
+
+=== Signature Scheme Size Comparison ===
+
+Scheme                 Public Key   Secret Key    Signature
+------                 ----------   ----------    ---------
+Lamport (256-bit)           16384        16384         8192
+ECDSA P-256                    64           32           64
+ML-DSA-65                    1952         4032         3309
+SLH-DSA-128f                   32           64        17088
+SLH-DSA-128s                   32           64         7856
+
+=== Self-test verdict ===
+  Valid signature accepted : PASS
+  Wrong message rejected   : PASS
+Result: PASS

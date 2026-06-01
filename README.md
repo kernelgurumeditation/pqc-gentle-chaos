@@ -67,6 +67,8 @@ Cross-volume references in V1 and V2 are rewritten automatically ("see Volume 2,
 
 The two-volume split is the better choice if you have a single audience. The unified PDF is for the rare reader who actually wants the full thing on one PDF.
 
+There's also a **single-page web edition** — `make web` produces `pqc-developers-handbook-web.html`, a self-contained HTML file with a sticky, filterable table of contents and anchored headings. Zero extra dependencies (it reuses `marked`), so any checkout that builds the PDFs builds this too. Good for reading in a browser or grepping with Ctrl-F.
+
 ## What's covered
 
 Eleven modules, roughly bottom-up:
@@ -112,6 +114,13 @@ make maintenance   # currency-lint + check-links
 ## Sources
 
 Anything authoritative is cited inline in the handbook. The load-bearing references are FIPS 203 / 204 / 205 (and the FIPS 206 IPD for FN-DSA), the IETF drafts for the hybrid constructions (`draft-connolly-cfrg-xwing-kem`, `draft-ietf-tls-ecdhe-mlkem`, `draft-ietf-lamps-pq-composite-sigs`), NIST SP 800-227 and IR 8547, and the CA/B Forum / BSI / ANSSI / NCSC / EU CRA guidance for the operational side.
+
+## Contributing & citing
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — how to build, the local checks CI runs, and how to add a reference program.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — Contributor Covenant.
+- [CHANGELOG.md](CHANGELOG.md) — notable changes per edition.
+- [CITATION.cff](CITATION.cff) — machine-readable citation metadata (GitHub renders a "Cite this repository" button).
 
 ## License
 

@@ -1,0 +1,23 @@
+Barrett Reduction Tests (q = 3329):
+
+barrett_reduce(0) = 0 (expected: 0)
+barrett_reduce(1) = 1 (expected: 1)
+barrett_reduce(3328) = 3328 (expected: 3328)
+barrett_reduce(3329) = 0 (expected: 0)
+barrett_reduce(3330) = 1 (expected: 1)
+barrett_reduce(10000) = 13 (expected: 13)
+barrett_reduce(100000) = 130 (expected: 130)
+
+Montgomery Form Tests:
+to_mont(0) = 0, expected: 0
+to_mont(1) = 2285, expected: 2285
+to_mont(2) = 1241, expected: 1241
+to_mont(3) = 197, expected: 197
+to_mont(4) = 2482, expected: 2482
+to_mont(5) = 1438, expected: 1438
+to_mont(6) = 394, expected: 394
+to_mont(7) = 2679, expected: 2679
+to_mont(8) = 1635, expected: 1635
+to_mont(9) = 591, expected: 591
+
+[PASS] Barrett and Montgomery results match expected

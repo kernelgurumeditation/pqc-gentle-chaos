@@ -1,0 +1,14 @@
+Key Pair Verification Demo
+==========================
+
+Test 1: Valid key pair
+  Result: VALID
+  Message: All checks passed
+
+Test 2: Corrupted s1 (coefficient out of range)
+  Result: INVALID
+  Message: s1[0][0] = 10 out of range [-4, 4]
+
+Test 3: Corrupted t1 (wrong decomposition)
+  Result: INVALID
+  Message: t1[0][0] mismatch: expected 0, got 1

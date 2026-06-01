@@ -82,7 +82,7 @@ int main(void) {
     printf("implementation CVEs. See Handbook Unit 11.10 for the CVE registry.\n");
     printf("\n");
     printf("Expected parameter sets (NIST Round 4 / FIPS 207 IPD forthcoming):\n");
-    printf("  HQC-128:  pk=2249, sk=2289, ct=4481, ss=32\n");
+    printf("  HQC-128:  pk=2249, sk=2289, ct=4481, ss=64\n");
     printf("  HQC-192:  pk=4522, sk=4562, ct=9026, ss=64\n");
     printf("  HQC-256:  pk=7245, sk=7285, ct=14469, ss=64\n");
     return 0;

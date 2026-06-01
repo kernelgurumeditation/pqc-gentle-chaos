@@ -1,0 +1,18 @@
+=== Lattice Point Membership Test ===
+
+Lattice with basis:
+  b1 = (3, 1)
+  b2 = (1, 2)
+
+Testing points:
+  (4, 3): YES (in lattice)
+  (3, 0): NO
+  (6, 2): YES (in lattice)
+  (2, 4): YES (in lattice)
+  (0, 0): YES (in lattice)
+
+Verification:
+  (4, 3) = 1*(3,1) + 1*(1,2) = (3+1, 1+2) = (4, 3) -> YES
+  (6, 2) = 2*(3,1) + 0*(1,2) = (6, 2) -> YES
+  (2, 4) = 0*(3,1) + 2*(1,2) = (2, 4) -> YES
+  (3, 0) cannot be written as integer combo -> NO

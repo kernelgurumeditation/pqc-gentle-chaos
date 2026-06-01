@@ -88,11 +88,15 @@ int main(void) {
     printf("Generated %d samples\n\n", M);
 
     // Try to recover secret
+    int ok = 0;
     int32_t found_s[N];
     if (brute_force_lwe(samples, M, found_s)) {
         printf("Found secret: (%d, %d)\n", found_s[0], found_s[1]);
         if (found_s[0] == true_s[0] && found_s[1] == true_s[1]) {
             printf("Correct! ✓\n");
+            ok = 1;
+        } else {
+            printf("Recovered a DIFFERENT secret than the true one!\n");
         }
     } else {
         printf("No valid secret found\n");
@@ -101,5 +105,8 @@ int main(void) {
     printf("\nComplexity: O(q^n) = O(%d^%d) = O(%d) operations\n",
            Q, N, Q * Q);
 
-    return 0;
+    /* Explicit success/failure verdict: the brute-force search MUST recover the
+     * true secret for these tiny parameters (n=2, q=17). */
+    printf("\n=== RESULT: %s ===\n", ok ? "PASS" : "FAIL");
+    return ok ? 0 : 1;
 }

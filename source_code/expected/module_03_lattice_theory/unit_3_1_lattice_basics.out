@@ -1,0 +1,15 @@
+=== Lattice Basics Demo ===
+
+Lattice with 'bad' basis:
+  b1: (10.000, 1.000), norm = 10.0499
+  b2: (11.000, 2.000), norm = 11.1803
+  Determinant: 9.0000
+
+Finding short vectors (naive enumeration)...
+  Shortest found: (1.000, 1.000), norm = 1.4142
+  (Much shorter than basis vectors!)
+
+Closest Vector Problem:
+  Target: (4.700, 2.300), norm = 5.2326
+  Closest lattice point: (0.000, 0.000), norm = 0.0000
+  Distance: 5.2326

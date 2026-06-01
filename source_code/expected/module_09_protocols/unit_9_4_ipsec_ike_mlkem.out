@@ -1,0 +1,26 @@
+IKEv2 hybrid PQ transform proposals
+(draft-ietf-ipsecme-ikev2-mlkem)
+
+Proposal: Hybrid ML-KEM-768 + X25519
+  ENCR:     AES_GCM_16 (256)
+  PRF:      HMAC_SHA2_256
+  INTEG:    HMAC_SHA2_256_128
+  DH:       group 31 (classical)
+  ADDKE1:   group 36 (ML-KEM) -- hybrid PQ exchange
+
+Proposal: Hybrid ML-KEM-1024 + P-384 (CNSA 2.0-compatible)
+  ENCR:     AES_GCM_16 (256)
+  PRF:      HMAC_SHA2_384
+  INTEG:    HMAC_SHA2_384_192
+  DH:       group 29 (classical)
+  ADDKE1:   group 37 (ML-KEM) -- hybrid PQ exchange
+
+Proposal: Classical-only (fallback)
+  ENCR:     AES_GCM_16 (128)
+  PRF:      HMAC_SHA2_256
+  INTEG:    HMAC_SHA2_256_128
+  DH:       group 31 (classical)
+
+strongSwan 6.0+ / Libreswan 5.2+ support ADDKE1 with ML-KEM.
+Cloudflare deployed this in production (March 2026), interop-tested
+with strongSwan at the IETF 118 hackathon.

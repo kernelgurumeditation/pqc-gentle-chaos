@@ -55,7 +55,12 @@
 #define ASN1_CONTEXT_1        0xa1
 #define ASN1_CONTEXT_3        0xa3
 
-/* -------- Algorithm identifiers -------- */
+/* -------- Algorithm identifiers --------
+ * NOTE: ALG_ECDSA_P256 / ALG_ECDSA_P384 exist so get_algorithm_oid() can emit
+ * the correct curve OIDs, but composite_keypair_init() only allocates and
+ * stores Ed25519-sized classical keys (see composite_keypair_t below). An
+ * uncompressed P-384 public point is 97 bytes (0x04||X||Y) and would NOT fit
+ * the inline classical_pk[] buffer, so P-384 keys are not actually stored. */
 typedef enum {
     ALG_NONE = 0,
     ALG_ED25519,
@@ -80,10 +85,14 @@ typedef struct {
     size_t         public_key_len;
 } spki_t;
 
-/* -------- Composite keypair (classical inline arrays + PQC heap) -------- */
+/* -------- Composite keypair (classical inline arrays + PQC heap) --------
+ * The inline classical buffers are sized only for Ed25519/X25519-class keys
+ * (public point <= 64 bytes, private key <= 64 bytes). They are NOT large
+ * enough for an uncompressed ECDSA-P384 public point (97 bytes), which is why
+ * composite_keypair_init() supports only ALG_ED25519 for the classical slot. */
 typedef struct {
     algorithm_id_t classical_alg;
-    uint8_t        classical_pk[64];
+    uint8_t        classical_pk[64];   /* fits Ed25519/X25519 (32 B); not P-384 (97 B) */
     size_t         classical_pk_len;
     uint8_t        classical_sk[128];
     size_t         classical_sk_len;

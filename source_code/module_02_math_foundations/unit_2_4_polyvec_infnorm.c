@@ -45,8 +45,14 @@ int main(void) {
     v.vec[1].coeffs[0] = 10;
     v.vec[2].coeffs[0] = Q - 2;  // = -2 centered
 
-    printf("L∞ norm of v: %d\n", polyvec_infnorm(&v));
+    int16_t norm = polyvec_infnorm(&v);
+    printf("L∞ norm of v: %d\n", norm);
     printf("Expected: 10 (largest absolute centered coefficient)\n");
 
-    return 0;
+    int ok = (norm == 10);
+    printf(ok ? "[PASS] L-inf norm matches expected\n"
+              : "[FAIL] L-inf norm mismatch\n");
+
+    /* Nonzero exit on failure so the test harness can detect it. */
+    return ok ? 0 : 1;
 }
